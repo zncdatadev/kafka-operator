@@ -1,0 +1,8 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Configuration
+metadata:
+  name: e2e
+spec:
+  skipDelete: false
+  failFast: true
+  parallel: 4
