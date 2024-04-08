@@ -1,0 +1,31 @@
+# permissions for end users to edit kafkaclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: kafkacluster-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kafka-operator
+    app.kubernetes.io/part-of: kafka-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: kafkacluster-editor-role
+rules:
+- apiGroups:
+  - kafka.zncdata.dev
+  resources:
+  - kafkaclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kafka.zncdata.dev
+  resources:
+  - kafkaclusters/status
+  verbs:
+  - get

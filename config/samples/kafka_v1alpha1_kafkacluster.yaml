@@ -1,0 +1,12 @@
+apiVersion: kafka.zncdata.dev/v1alpha1
+kind: KafkaCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: kafkacluster
+    app.kubernetes.io/instance: kafkacluster-sample
+    app.kubernetes.io/part-of: kafka-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kafka-operator
+  name: kafkacluster-sample
+spec:
+  # TODO(user): Add fields here

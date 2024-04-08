@@ -1,0 +1,27 @@
+# permissions for end users to view kafkaclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: kafkacluster-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kafka-operator
+    app.kubernetes.io/part-of: kafka-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: kafkacluster-viewer-role
+rules:
+- apiGroups:
+  - kafka.zncdata.dev
+  resources:
+  - kafkaclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kafka.zncdata.dev
+  resources:
+  - kafkaclusters/status
+  verbs:
+  - get
