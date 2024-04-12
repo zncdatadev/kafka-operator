@@ -22,6 +22,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	Log4jFileName    = "log4j.properties"
+	SecurityFileName = "security.properties"
+	ServerFileName   = "server.properties"
+)
+
+const (
+	KafkaPortName    = "kafka"
+	InternalPortName = "internal"
+
+	KafkaClientPort = 9092
+	InternalPort    = 19092
+	//ExternalPortMin = 29092
+)
+
+type SslPolicy string
+
+const (
+	SslPolicyNone     SslPolicy = "none"
+	SslPolicyOptional SslPolicy = "requested"
+	SslPolicyRequired SslPolicy = "required"
+)
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
@@ -57,10 +80,10 @@ type KafkaClusterSpec struct {
 
 type ImageSpec struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=docker.stackable.tech/stackable/hadoop
+	// +kubebuilder:default=bitnami/kafka
 	Repository string `json:"repository,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="3.3.4-stackable24.3.0"
+	// +kubebuilder:default:="3.7.0-debian-12-r2"
 	Tag string `json:"tag,omitempty"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=IfNotPresent
@@ -159,6 +182,33 @@ type BrokersConfigSpec struct {
 
 	// +kubebuilder:validation:Optional
 	Logging *BrokersContainerLoggingSpec `json:"logging,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=required;requested;none
+	// +kubebuilder:default:="none"
+	Ssl *SslSpec `json:"ssl,omitempty"`
+}
+
+type SslSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=required;requested;none
+	// +kubebuilder:default:="none"
+	Ssl string `json:"ssl,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	KeyStorePassword string `json:"keystorePassword,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS
+	// +kubebuilder:default:="PKCS12"
+	KeyStoreType string `json:"keystoreType,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	TrustStorePassword string `json:"truststorePassword,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS
+	TrustStoreType string `json:"truststoreType,omitempty"`
 }
 
 type BrokersContainerLoggingSpec struct {
