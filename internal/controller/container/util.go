@@ -1,6 +1,9 @@
 package container
 
-import "github.com/zncdata-labs/kafka-operator/internal/common"
+import (
+	"github.com/zncdata-labs/kafka-operator/api/v1alpha1"
+	"github.com/zncdata-labs/kafka-operator/internal/common"
+)
 
 func DataVolumeName() string {
 	return "data"
@@ -53,3 +56,7 @@ const (
 	EnvNodePort             = "NODE_PORT"
 	EnvPodName              = "POD_NAME"
 )
+
+func sslEnabled(sslSpec *v1alpha1.SslSpec) bool {
+	return sslSpec != nil && sslSpec.Enabled == string(v1alpha1.SslPolicyRequired)
+}

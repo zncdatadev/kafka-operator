@@ -9,4 +9,33 @@ metadata:
     app.kubernetes.io/created-by: kafka-operator
   name: kafkacluster-sample
 spec:
+  clusterConfig:
+    zookeeperDiscoveryZNode: "sample-kafka-znode"
+  brokers:
+    roleGroups:
+      default:
+        replicas: 3
+        config:
+          resources:
+            cpu:
+              min: 1
+              max: 2
+            memory:
+              limit: "3Gi"
+          logging:
+            broker:
+              loggers:
+                test:
+                  level: DEBUG
+              console:
+                level: WARN
+              file:
+                level: ERROR
+          ssl:
+            enabled: "required"
+            keystoreType: PKCS12
+            keystorePassword: "123456"
+            truststoreType: PKCS12
+            truststorePassword: "123456"
+
   # TODO(user): Add fields here

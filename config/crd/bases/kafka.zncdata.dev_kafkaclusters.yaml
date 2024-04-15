@@ -1442,6 +1442,13 @@ spec:
                         - requested
                         - none
                         properties:
+                          enabled:
+                            default: none
+                            enum:
+                            - required
+                            - requested
+                            - none
+                            type: string
                           keystorePassword:
                             type: string
                           keystoreType:
@@ -1450,13 +1457,7 @@ spec:
                             - PKCS12
                             - PEM
                             - JKS
-                            type: string
-                          ssl:
-                            default: none
-                            enum:
-                            - required
-                            - requested
-                            - none
+                            - KERBEROS
                             type: string
                           truststorePassword:
                             type: string
@@ -3086,6 +3087,13 @@ spec:
                               - requested
                               - none
                               properties:
+                                enabled:
+                                  default: none
+                                  enum:
+                                  - required
+                                  - requested
+                                  - none
+                                  type: string
                                 keystorePassword:
                                   type: string
                                 keystoreType:
@@ -3094,13 +3102,7 @@ spec:
                                   - PKCS12
                                   - PEM
                                   - JKS
-                                  type: string
-                                ssl:
-                                  default: none
-                                  enum:
-                                  - required
-                                  - requested
-                                  - none
+                                  - KERBEROS
                                   type: string
                                 truststorePassword:
                                   type: string

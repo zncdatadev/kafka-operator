@@ -13,6 +13,7 @@ type KafkaContainerBuilder struct {
 	common.ContainerBuilder
 	zookeeperDiscoveryZNode string
 	resourceSpec            *kafkav1alpha1.ResourcesSpec
+	sslSpec                 *kafkav1alpha1.SslSpec
 }
 
 func NewKafkaContainerBuilder(
@@ -20,11 +21,13 @@ func NewKafkaContainerBuilder(
 	imagePullPolicy corev1.PullPolicy,
 	zookeeperDiscoveryZNode string,
 	resourceSpec *kafkav1alpha1.ResourcesSpec,
+	sslSpec *kafkav1alpha1.SslSpec,
 ) *KafkaContainerBuilder {
 	return &KafkaContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
 		resourceSpec:            resourceSpec,
+		sslSpec:                 sslSpec,
 	}
 }
 
@@ -65,11 +68,7 @@ func (d *KafkaContainerBuilder) ResourceRequirements() corev1.ResourceRequiremen
 }
 
 func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      TlsKeystoreInternalVolumeName(),
-			MountPath: TlsKeystoreMountPath,
-		},
+	mounts := []corev1.VolumeMount{
 		{
 			Name:      DataVolumeName(),
 			MountPath: DataMountPath,
@@ -87,6 +86,13 @@ func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: LogMountPath,
 		},
 	}
+	if sslEnabled(d.sslSpec) {
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      TlsKeystoreInternalVolumeName(),
+			MountPath: TlsKeystoreMountPath,
+		})
+	}
+	return mounts
 }
 
 func (d *KafkaContainerBuilder) LivenessProbe() *corev1.Probe {

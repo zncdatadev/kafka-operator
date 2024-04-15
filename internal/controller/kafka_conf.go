@@ -132,7 +132,7 @@ func (k *KafkaConfGenerator) advertisedListeners() string {
 // listener.security.protocol.map=CLIENT:PLAINTEXT,CLUSTER:PLAINTEXT,EXTERNAL:PLAINTEXT
 func (k *KafkaConfGenerator) listenerSecurityProtocolMap(sslSpec *v1alpha1.SslSpec) string {
 	var protocol common.SecurityProtocol
-	if k.sslEnabled(sslSpec) {
+	if sslEnabled(sslSpec) {
 		protocol = common.Ssl
 	} else {
 		protocol = common.Plaintext
@@ -155,7 +155,6 @@ func (k *KafkaConfGenerator) zkConnections() string {
 }
 
 // listener ssl properties
-// todo: wait for secret csi
 // listener ssl properties
 // ssl.keystore.location=/opt/kafka/config/keystore.jks
 // ssl.keystore.password=${env.KAFKA_SSL_KEYSTORE_PASSWORD}
@@ -163,7 +162,7 @@ func (k *KafkaConfGenerator) zkConnections() string {
 // ssl.truststore.location=/opt/kafka/config/truststore.jks
 // ssl.truststore.password=${env.KAFKA_SSL_TRUSTSTORE_PASSWORD}
 func (k *KafkaConfGenerator) listenerSslProperties(sslSpec *v1alpha1.SslSpec) string {
-	if k.sslEnabled(sslSpec) {
+	if sslEnabled(sslSpec) {
 		return fmt.Sprintf(k.listenerPrefix(interListerName) + ".ssl.keystore.location=" + container.TlsKeystoreMountPath + "/keystore.jks\n" +
 			k.listenerPrefix(interListerName) + "ssl.keystore.password=" + sslSpec.KeyStorePassword + "\n" +
 			k.listenerPrefix(interListerName) + "ssk.keystore.type=" + sslSpec.KeyStoreType + "\n" +
@@ -172,9 +171,4 @@ func (k *KafkaConfGenerator) listenerSslProperties(sslSpec *v1alpha1.SslSpec) st
 			k.listenerPrefix(interListerName) + "ssl.truststore.type=" + sslSpec.TrustStoreType)
 	}
 	return ""
-}
-
-// ssl enabled
-func (k *KafkaConfGenerator) sslEnabled(sslSpec *v1alpha1.SslSpec) bool {
-	return sslSpec != nil && sslSpec.Ssl == string(v1alpha1.SslPolicyRequired)
 }

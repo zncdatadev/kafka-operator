@@ -194,13 +194,13 @@ type SslSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=required;requested;none
 	// +kubebuilder:default:="none"
-	Ssl string `json:"ssl,omitempty"`
+	Enabled string `json:"enabled,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	KeyStorePassword string `json:"keystorePassword,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS
+	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS;KERBEROS
 	// +kubebuilder:default:="PKCS12"
 	KeyStoreType string `json:"keystoreType,omitempty"`
 

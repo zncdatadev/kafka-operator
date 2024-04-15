@@ -93,9 +93,10 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 func (s *StatefulSetReconciler) makeKafkaContainer() []corev1.Container {
 	imageSpec := s.Instance.Spec.Image
 	resourceSpec := s.MergedCfg.Config.Resources
+	sslSpec := s.MergedCfg.Config.Ssl
 	zNode := s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
 	imageName := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
-	builder := container.NewKafkaContainerBuilder(imageName, imageSpec.PullPolicy, zNode, resourceSpec)
+	builder := container.NewKafkaContainerBuilder(imageName, imageSpec.PullPolicy, zNode, resourceSpec, sslSpec)
 	kafkaContainer := builder.Build(builder)
 	return []corev1.Container{
 		kafkaContainer,
@@ -112,7 +113,7 @@ func (s *StatefulSetReconciler) makeInitContainers() []corev1.Container {
 
 // make volumes
 func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
-	return []common.VolumeSpec{
+	volumes := []common.VolumeSpec{
 		{
 			Name:       container.ConfigVolumeName(),
 			SourceType: common.ConfigMap,
@@ -135,7 +136,9 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 					},
 				}},
 		},
-		{
+	}
+	if sslEnabled(s.MergedCfg.Config.Ssl) {
+		volumes = append(volumes, common.VolumeSpec{
 			Name:       container.TlsKeystoreInternalVolumeName(),
 			SourceType: common.EphemeralSecret,
 			Params: &common.VolumeSourceParams{
@@ -148,8 +151,9 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 					},
 				},
 			},
-		},
+		})
 	}
+	return volumes
 }
 
 // tls keystore annotations
