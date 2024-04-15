@@ -5,12 +5,11 @@ import (
 	"github.com/go-logr/logr"
 	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
 	"github.com/zncdata-labs/kafka-operator/internal/common"
+	svc2 "github.com/zncdata-labs/kafka-operator/internal/controller/svc"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-const Broker common.Role = "broker"
 
 type ClusterReconciler struct {
 	client client.Client
@@ -35,7 +34,9 @@ func NewClusterReconciler(client client.Client, scheme *runtime.Scheme, cr *kafk
 
 // RegisterRole register role reconciler
 func (c *ClusterReconciler) RegisterRole() {
-
+	c.roleReconcilers = []common.RoleReconciler{
+		NewRoleBroker(c.scheme, c.cr, c.client, c.Log),
+	}
 }
 
 func (c *ClusterReconciler) RegisterResource() {
@@ -43,8 +44,11 @@ func (c *ClusterReconciler) RegisterResource() {
 	labels := common.RoleLabels{
 		InstanceName: c.cr.Name,
 	}
-	sa := NewServiceAccount(c.scheme, c.cr, c.client, "", labels.GetLabels(), nil)
-	c.resourceReconcilers = []common.ResourceReconciler{sa}
+	sa := NewServiceAccount(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
+	role := NewClusterRole(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
+	roleBinding := NewClusterRoleBinding(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
+	svc := svc2.NewClusterService(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
+	c.resourceReconcilers = []common.ResourceReconciler{sa, role, roleBinding, svc}
 }
 
 func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, error) {
@@ -95,9 +99,8 @@ func (c *ClusterReconciler) preReconcile() {
 }
 
 func (c *ClusterReconciler) ReconcileDiscovery(ctx context.Context) (ctrl.Result, error) {
-	//discovery := NewDiscovery(c.scheme, c.cr, c.client)
-	//return discovery.ReconcileResource(ctx, common.NewSingleResourceBuilder(discovery))
-	return ctrl.Result{}, nil
+	discovery := NewDiscovery(c.scheme, c.cr, c.client)
+	return discovery.ReconcileResource(ctx, common.NewSingleResourceBuilder(discovery))
 }
 
 type KafkaClusterInstance struct {

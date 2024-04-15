@@ -1,19 +1,16 @@
 package controller
 
 import (
+	"github.com/zncdata-labs/kafka-operator/internal/common"
 	"github.com/zncdata-labs/kafka-operator/internal/util"
 )
 
-func createConfigName(instanceName string, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(Broker), groupName).GenerateResourceName("")
-}
-
 func createStatefulSetName(instanceName string, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(Broker), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.Broker), groupName).GenerateResourceName("")
 }
 
 func createServiceName(instanceName string, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(Broker), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.Broker), groupName).GenerateResourceName("")
 }
 
 const (

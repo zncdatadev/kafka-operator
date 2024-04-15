@@ -9,46 +9,39 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// NewGroupServiceHeadless new a GroupServiceReconciler
-func NewGroupServiceHeadless(
+func NewClusterService(
 	scheme *runtime.Scheme,
 	instance *kafkav1alpha1.KafkaCluster,
 	client client.Client,
-	groupName string,
 	labels map[string]string,
 	mergedCfg *kafkav1alpha1.BrokersRoleGroupSpec,
 ) *common.GenericServiceReconciler[*kafkav1alpha1.KafkaCluster, *kafkav1alpha1.BrokersRoleGroupSpec] {
-	headlessType := common.HeadlessService
-	buidler := common.NewServiceBuilder(
-		CreateGroupServiceName(instance.GetName(), groupName),
+	headlessServiceType := common.Service
+	serviceType := corev1.ServiceTypeNodePort
+	builder := common.NewServiceBuilder(
+		CreateGroupServiceName(instance.GetName(), ""),
 		instance.GetNamespace(),
 		labels,
-		makeGroupSvcPorts(),
-	).SetClusterIP(&headlessType)
+		makePorts(),
+	).SetClusterIP(&headlessServiceType).SetType(&serviceType)
 	return common.NewGenericServiceReconciler(
 		scheme,
 		instance,
 		client,
-		groupName,
+		"",
 		labels,
 		mergedCfg,
-		buidler,
-	)
+		builder)
 }
 
-func makeGroupSvcPorts() []corev1.ServicePort {
+func makePorts() []corev1.ServicePort {
 	return []corev1.ServicePort{
 		{
 			Name:       kafkav1alpha1.KafkaPortName,
-			Port:       GroupServiceClientPort,
+			Port:       ClusterServiceClientPort,
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromString(kafkav1alpha1.KafkaPortName),
-		},
-		{
-			Name:       kafkav1alpha1.InternalPortName,
-			Port:       GroupServiceInternalPort,
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString(kafkav1alpha1.InternalPortName),
+			NodePort:   ClusterServiceClientNodePort,
 		},
 	}
 }

@@ -29,6 +29,9 @@ func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {
 	}
 }
 
+func CreateConfigName(instanceName string, groupName string) string {
+	return util.NewResourceNameGenerator(instanceName, string(common.Broker), groupName).GenerateResourceName("")
+}
 func CreateClusterServiceName(instanceName string) string {
 	return instanceName + "-cluster"
 }

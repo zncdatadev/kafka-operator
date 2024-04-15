@@ -1,9 +1,16 @@
 package common
 
 import (
+	"context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+type SinglePodServiceResourceType interface {
+	MultiResourceReconcilerBuilder
+}
 
 // ServiceBuilder service builder
 // contains: name, namespace, labels, ports, these should be required
@@ -70,3 +77,33 @@ const (
 	Service         HeadlessServiceType = ""
 	HeadlessService HeadlessServiceType = "None"
 )
+
+type GenericServiceReconciler[T client.Object, G any] struct {
+	GeneralResourceStyleReconciler[T, G]
+	svcBuilder *ServiceBuilder
+}
+
+func NewGenericServiceReconciler[T client.Object, G any](
+	scheme *runtime.Scheme,
+	instance T,
+	client client.Client,
+	groupName string,
+	mergedLabels map[string]string,
+	mergedCfg G,
+	svcBuilder *ServiceBuilder,
+) *GenericServiceReconciler[T, G] {
+	return &GenericServiceReconciler[T, G]{
+		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler[T, G](
+			scheme,
+			instance,
+			client,
+			groupName,
+			mergedLabels,
+			mergedCfg),
+		svcBuilder: svcBuilder,
+	}
+}
+
+func (s *GenericServiceReconciler[T, G]) Build(_ context.Context) (client.Object, error) {
+	return s.svcBuilder.Build(), nil
+}

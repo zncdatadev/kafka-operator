@@ -16,7 +16,7 @@ import (
 var _ common.StatefulSetResourceType = &StatefulSetReconciler{}
 
 type StatefulSetReconciler struct {
-	common.WorkloadStyleReconciler[*kafkav1alpha1.KafkaCluster, *kafkav1alpha1.BrokersRoleGroupSpec]
+	common.WorkloadStyleUncheckedReconciler[*kafkav1alpha1.KafkaCluster, *kafkav1alpha1.BrokersRoleGroupSpec]
 }
 
 func NewStatefulSet(
@@ -29,7 +29,7 @@ func NewStatefulSet(
 	replicate int32,
 ) *StatefulSetReconciler {
 	return &StatefulSetReconciler{
-		WorkloadStyleReconciler: *common.NewWorkloadStyleReconciler(
+		WorkloadStyleUncheckedReconciler: *common.NewWorkloadStyleUncheckedReconciler(
 			scheme,
 			instance,
 			client,
@@ -99,7 +99,7 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 			SourceType: common.ConfigMap,
 			Params: &common.VolumeSourceParams{
 				ConfigMap: common.ConfigMapSpec{
-					Name: createConfigName(s.Instance.GetName(), s.GroupName),
+					Name: common.CreateConfigName(s.Instance.GetName(), s.GroupName),
 					KeyPath: []corev1.KeyToPath{
 						{Key: kafkav1alpha1.ServerFileName, Path: "server.properties"},
 					},
@@ -110,7 +110,7 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 			SourceType: common.ConfigMap,
 			Params: &common.VolumeSourceParams{
 				ConfigMap: common.ConfigMapSpec{
-					Name: createConfigName(s.Instance.GetName(), s.GroupName),
+					Name: common.CreateConfigName(s.Instance.GetName(), s.GroupName),
 					KeyPath: []corev1.KeyToPath{
 						{Key: kafkav1alpha1.Log4jFileName, Path: "log4j.properties"},
 					},

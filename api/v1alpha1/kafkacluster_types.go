@@ -32,9 +32,10 @@ const (
 	KafkaPortName    = "kafka"
 	InternalPortName = "internal"
 
-	KafkaClientPort = 9092
-	InternalPort    = 19092
-	//ExternalPortMin = 29092
+	KafkaClientPort           = 9092
+	InternalPort              = 19092
+	PodSvcClientNodePortMin   = 29092
+	PodSvcInternalNodePortMin = 39092
 )
 
 type SslPolicy string

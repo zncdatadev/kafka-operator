@@ -14,6 +14,8 @@ import (
 
 type Role string
 
+const Broker Role = "broker"
+
 type RoleReconciler interface {
 	RoleName() Role
 	ReconcileRole(ctx context.Context) (ctrl.Result, error)

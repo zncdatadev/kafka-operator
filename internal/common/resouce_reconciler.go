@@ -45,7 +45,7 @@ type ResourceBuilder interface {
 // it will build multi resources
 // for example, it will build more than one configMap
 // currently, it is used to build the configMap
-// see MultiConfigurationStyleReconciler
+// see MultiResourceReconciler
 type MultiResourceReconcilerBuilder interface {
 	Build(ctx context.Context) ([]ResourceBuilder, error)
 }
@@ -75,6 +75,7 @@ type BaseResourceReconciler[T client.Object, G any] struct {
 
 	MergedLabels map[string]string
 	MergedCfg    G
+	owner        metav1.Object
 }
 
 // NewBaseResourceReconciler new a BaseResourceReconciler
@@ -93,6 +94,12 @@ func NewBaseResourceReconciler[T client.Object, G any](
 		MergedLabels: mergedLabels,
 		MergedCfg:    mergedCfg,
 	}
+}
+
+// SetOwner set owner
+func (b *BaseResourceReconciler[T, G]) SetOwner(owner metav1.Object) *BaseResourceReconciler[T, G] {
+	b.owner = owner
+	return b
 }
 
 func (b *BaseResourceReconciler[T, G]) ReconcileResource(
@@ -122,7 +129,10 @@ func (b *BaseResourceReconciler[T, G]) Apply(
 	if dep == nil {
 		return ctrl.Result{}, nil
 	}
-	if err := ctrl.SetControllerReference(b.Instance, dep, b.Scheme); err != nil {
+	if b.owner == nil {
+		b.owner = b.Instance
+	}
+	if err := ctrl.SetControllerReference(b.owner, dep, b.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
 	mutant, err := util.CreateOrUpdate(ctx, b.Client, dep)
@@ -218,6 +228,59 @@ func (s *ConfigurationStyleReconciler[T, G]) DoReconcile(
 	return s.Apply(ctx, resource, time.Second*5)
 }
 
+type WorkloadStyleUncheckedReconciler[T client.Object, G any] struct {
+	BaseResourceReconciler[T, G]
+	Replicas int32
+}
+
+func NewWorkloadStyleUncheckedReconciler[T client.Object, G any](
+	scheme *runtime.Scheme,
+	instance T,
+	client client.Client,
+	groupName string,
+	mergedLabels map[string]string,
+	mergedCfg G,
+	replicas int32,
+) *WorkloadStyleUncheckedReconciler[T, G] {
+	return &WorkloadStyleUncheckedReconciler[T, G]{
+		BaseResourceReconciler: *NewBaseResourceReconciler[T, G](
+			scheme,
+			instance,
+			client,
+			groupName,
+			mergedLabels,
+			mergedCfg),
+		Replicas: replicas,
+	}
+}
+
+func (s *WorkloadStyleUncheckedReconciler[T, G]) DoReconcile(
+	ctx context.Context,
+	resource client.Object,
+	instance ResourceHandler,
+) (ctrl.Result, error) {
+	// apply resource
+	// check if the resource is satisfied
+	// if not, return requeue
+	// if satisfied, return nil
+	if override, ok := instance.(WorkloadOverride); ok {
+		override.CommandOverride(resource)
+		override.EnvOverride(resource)
+		override.LogOverride(resource)
+	} else {
+		panic("resource is not WorkloadOverride")
+	}
+
+	if res, err := s.Apply(ctx, resource, time.Second*10); err != nil {
+		return ctrl.Result{}, err
+	} else if res.RequeueAfter > 0 {
+		return res, nil
+	}
+
+	// no check if the pods are satisfied
+	return ctrl.Result{}, nil
+}
+
 // WorkloadStyleReconciler workload style reconciler
 // this reconciler is used to reconcile the workload style resources
 // such as workload, statefulSet, etc.
@@ -282,7 +345,13 @@ func (s *WorkloadStyleReconciler[T, G]) DoReconcile(
 	}
 
 	// Check if the pods are satisfied
-	satisfied, err := s.CheckPodsSatisfied(ctx)
+	return s.CheckPodsSatisfied(ctx, instance)
+}
+
+// CheckPodsSatisfied check if the pods are satisfied
+func (s *WorkloadStyleReconciler[T, G]) CheckPodsSatisfied(ctx context.Context, handler ResourceHandler) (ctrl.Result, error) {
+	// Check if the pods are satisfied
+	satisfied, err := s.CheckPodReplicas(ctx)
 	if err != nil {
 		log.Error(err, "failed to check if the pods are satisfied", "labels", s.MergedLabels)
 		return ctrl.Result{}, err
@@ -293,7 +362,7 @@ func (s *WorkloadStyleReconciler[T, G]) DoReconcile(
 			metav1.ConditionTrue,
 			"WorkloadSatisfied",
 			"Workload is satisfied",
-			instance,
+			handler,
 		)
 		if err != nil {
 			log.Error(err, "failed to update status when workload is satisfied", "labels", s.MergedLabels)
@@ -306,7 +375,7 @@ func (s *WorkloadStyleReconciler[T, G]) DoReconcile(
 		metav1.ConditionFalse,
 		"WorkloadNotSatisfied",
 		"Workload is not satisfied",
-		instance,
+		handler,
 	)
 	if err != nil {
 		log.Error(err, "failed to update status when workload is not satisfied", "labels", s.MergedLabels)
@@ -315,7 +384,7 @@ func (s *WorkloadStyleReconciler[T, G]) DoReconcile(
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 
-func (s *WorkloadStyleReconciler[T, G]) CheckPodsSatisfied(ctx context.Context) (bool, error) {
+func (s *WorkloadStyleReconciler[T, G]) CheckPodReplicas(ctx context.Context) (bool, error) {
 	pods := corev1.PodList{}
 	podListOptions := []client.ListOption{
 		client.InNamespace(s.Instance.GetNamespace()),
@@ -326,7 +395,6 @@ func (s *WorkloadStyleReconciler[T, G]) CheckPodsSatisfied(ctx context.Context) 
 		log.Error(err, "failed to list pods")
 		return false, err
 	}
-
 	return len(pods.Items) == int(s.Replicas), nil
 }
 
@@ -351,12 +419,11 @@ func (s *WorkloadStyleReconciler[T, G]) updateStatus(
 	}
 }
 
-// MultiConfigurationStyleReconciler multi configuration object reconciler
-type MultiConfigurationStyleReconciler[T client.Object, G any] struct {
+// MultiResourceReconciler multi configuration object reconciler
+type MultiResourceReconciler[T client.Object, G any] struct {
 	BaseResourceReconciler[T, G]
 }
 
-// NewMultiConfigurationStyleReconciler newMultiConfigurationStyleReconciler new a MultiConfigurationStyleReconciler
 func NewMultiConfigurationStyleReconciler[T client.Object, G any](
 	scheme *runtime.Scheme,
 	instance T,
@@ -364,8 +431,8 @@ func NewMultiConfigurationStyleReconciler[T client.Object, G any](
 	groupName string,
 	mergedLabels map[string]string,
 	mergedCfg G,
-) *MultiConfigurationStyleReconciler[T, G] {
-	return &MultiConfigurationStyleReconciler[T, G]{
+) *MultiResourceReconciler[T, G] {
+	return &MultiResourceReconciler[T, G]{
 		BaseResourceReconciler: *NewBaseResourceReconciler[T, G](
 			scheme,
 			instance,
@@ -377,7 +444,7 @@ func NewMultiConfigurationStyleReconciler[T client.Object, G any](
 }
 
 // ReconcileResource implement ResourceReconcile interface
-func (s *MultiConfigurationStyleReconciler[T, G]) ReconcileResource(
+func (s *MultiResourceReconciler[T, G]) ReconcileResource(
 	ctx context.Context,
 	builder ResourceBuilderType) (ctrl.Result, error) {
 	// 1. mergelables
@@ -405,54 +472,4 @@ func (s *MultiConfigurationStyleReconciler[T, G]) ReconcileResource(
 		}
 	}
 	return ctrl.Result{}, nil
-}
-
-// GeneralConfigMapReconciler general config map reconciler generator
-// it can be used to generate config map reconciler for simple config map
-// parameters:
-// 1. resourceBuilerFunc: a function to create a new resource
-type GeneralConfigMapReconciler[T client.Object, G any] struct {
-	GeneralResourceStyleReconciler[T, G]
-	resourceBuilderFunc       func() (client.Object, error)
-	configurationOverrideFunc func() error
-}
-
-// NewGeneralConfigMap new a GeneralConfigMapReconciler
-func NewGeneralConfigMap[T client.Object, G any](
-	scheme *runtime.Scheme,
-	instance T,
-	client client.Client,
-	groupName string,
-	mergedLabels map[string]string,
-	mergedCfg G,
-	resourceBuilderFunc func() (client.Object, error),
-	configurationOverrideFunc func() error,
-
-) *GeneralConfigMapReconciler[T, G] {
-	return &GeneralConfigMapReconciler[T, G]{
-		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler[T, G](
-			scheme,
-			instance,
-			client,
-			groupName,
-			mergedLabels,
-			mergedCfg),
-		resourceBuilderFunc:       resourceBuilderFunc,
-		configurationOverrideFunc: configurationOverrideFunc,
-	}
-}
-
-// Build implements the ResourceBuilder interface
-func (c *GeneralConfigMapReconciler[T, G]) Build(_ context.Context) (client.Object, error) {
-	return c.resourceBuilderFunc()
-}
-
-// ConfigurationOverride implement ConfigurationOverride interface
-func (c *GeneralConfigMapReconciler[T, G]) ConfigurationOverride(resource client.Object) {
-	if c.configurationOverrideFunc != nil {
-		err := c.configurationOverrideFunc()
-		if err != nil {
-			return
-		}
-	}
 }

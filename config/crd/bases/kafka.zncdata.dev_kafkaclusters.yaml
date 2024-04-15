@@ -1435,6 +1435,38 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      ssl:
+                        default: none
+                        enum:
+                        - required
+                        - requested
+                        - none
+                        properties:
+                          keystorePassword:
+                            type: string
+                          keystoreType:
+                            default: PKCS12
+                            enum:
+                            - PKCS12
+                            - PEM
+                            - JKS
+                            type: string
+                          ssl:
+                            default: none
+                            enum:
+                            - required
+                            - requested
+                            - none
+                            type: string
+                          truststorePassword:
+                            type: string
+                          truststoreType:
+                            enum:
+                            - PKCS12
+                            - PEM
+                            - JKS
+                            type: string
+                        type: object
                       storageClass:
                         type: string
                       storageSize:
@@ -3047,6 +3079,38 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            ssl:
+                              default: none
+                              enum:
+                              - required
+                              - requested
+                              - none
+                              properties:
+                                keystorePassword:
+                                  type: string
+                                keystoreType:
+                                  default: PKCS12
+                                  enum:
+                                  - PKCS12
+                                  - PEM
+                                  - JKS
+                                  type: string
+                                ssl:
+                                  default: none
+                                  enum:
+                                  - required
+                                  - requested
+                                  - none
+                                  type: string
+                                truststorePassword:
+                                  type: string
+                                truststoreType:
+                                  enum:
+                                  - PKCS12
+                                  - PEM
+                                  - JKS
+                                  type: string
+                              type: object
                             storageClass:
                               type: string
                             storageSize:
@@ -3160,10 +3224,10 @@ spec:
                       a container image
                     type: string
                   repository:
-                    default: docker.stackable.tech/stackable/hadoop
+                    default: bitnami/kafka
                     type: string
                   tag:
-                    default: 3.3.4-stackable24.3.0
+                    default: 3.7.0-debian-12-r2
                     type: string
                 type: object
             type: object

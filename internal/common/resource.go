@@ -44,6 +44,11 @@ func (r *ResourceClient) Get(obj client.Object) error {
 	return nil
 }
 
+// List list
+func (r *ResourceClient) List(obj client.ObjectList) error {
+	return r.Client.List(r.Ctx, obj, client.InNamespace(r.Namespace))
+}
+
 type InstanceAttributes interface {
 	RoleConfigSpec
 	GetClusterConfig() any
