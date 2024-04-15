@@ -11,13 +11,9 @@ type FetchNodePortContainerBuilder struct {
 	common.ContainerBuilder
 }
 
-func NewFetchNodePortContainerBuilder(
-	image string,
-	imagePullPolicy corev1.PullPolicy,
-	resource corev1.ResourceRequirements,
-) *FetchNodePortContainerBuilder {
+func NewFetchNodePortContainerBuilder() *FetchNodePortContainerBuilder {
 	return &FetchNodePortContainerBuilder{
-		ContainerBuilder: *common.NewContainerBuilder(image, imagePullPolicy, resource),
+		ContainerBuilder: *common.NewContainerBuilder("bitnami/kubectl", corev1.PullIfNotPresent),
 	}
 }
 

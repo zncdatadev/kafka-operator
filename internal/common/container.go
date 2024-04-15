@@ -10,29 +10,28 @@ import corev1 "k8s.io/api/core/v1"
 type ContainerBuilder struct {
 	Image           string
 	ImagePullPolicy corev1.PullPolicy
-	Resources       corev1.ResourceRequirements
 }
 
 func NewContainerBuilder(
 	Image string,
 	ImagePullPolicy corev1.PullPolicy,
-	Resource corev1.ResourceRequirements,
 ) *ContainerBuilder {
 	return &ContainerBuilder{
 		Image:           Image,
 		ImagePullPolicy: ImagePullPolicy,
-		Resources:       Resource,
 	}
 }
 
 func (b *ContainerBuilder) Build(handler interface{}) corev1.Container {
 	container := corev1.Container{
 		Image:           b.Image,
-		Resources:       b.Resources,
 		ImagePullPolicy: b.ImagePullPolicy,
 	}
 	if containerName, ok := handler.(ContainerName); ok {
 		container.Name = containerName.ContainerName()
+	}
+	if resourceRequirements, ok := handler.(ResourceRequirements); ok {
+		container.Resources = resourceRequirements.ResourceRequirements()
 	}
 	if command, ok := handler.(Command); ok {
 		container.Command = command.Command()
@@ -60,6 +59,10 @@ func (b *ContainerBuilder) Build(handler interface{}) corev1.Container {
 
 type ContainerName interface {
 	ContainerName() string
+}
+
+type ResourceRequirements interface {
+	ResourceRequirements() corev1.ResourceRequirements
 }
 
 type Command interface {

@@ -1,6 +1,6 @@
 package common
 
-// Listener
+// Listener csi
 
 const ListenerStorageClass = "listeners.zncdata.dev"
 const ListenerAnnotationKey = ListenerStorageClass + "/listener-class"
@@ -22,11 +22,12 @@ const SecretStorageClass = "secrets.zncdata.dev"
 const SecretAnnotationClass = SecretStorageClass + "/class"
 const SecretAnnotationFormat = SecretStorageClass + "/format"
 const SecretAnnotationScope = SecretStorageClass + "/scope"
+const SecretAnnotationPKCS12Password = SecretStorageClass + "/tlsPKCS12Password"
 
 type SecretClass string
 
 const (
-	Tls SecretClass = "cluster-internal"
+	Tls SecretClass = "tls"
 )
 
 type SecretFormat string
@@ -40,9 +41,9 @@ const (
 type SecretScope string
 
 const (
-	ScopeService        SecretScope = "cluster"
+	ScopeService        SecretScope = "service"
 	ScopeNode           SecretScope = "node"
-	ScopeListenerVolume SecretScope = "namespace"
+	ScopeListenerVolume SecretScope = "listener-volume"
 	ScopePod            SecretScope = "pod"
 )
 

@@ -5,6 +5,8 @@ import (
 	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
 	"github.com/zncdata-labs/kafka-operator/internal/common"
 	"github.com/zncdata-labs/kafka-operator/internal/controller/container"
+	"github.com/zncdata-labs/kafka-operator/internal/controller/svc"
+	"github.com/zncdata-labs/kafka-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,12 +49,13 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 		s.Instance.Namespace,
 		s.MergedLabels,
 		s.Replicas,
-		createServiceName(s.Instance.GetName(), s.GroupName),
+		svc.CreateGroupServiceName(s.Instance.GetName(), s.GroupName),
 		s.makeKafkaContainer(),
 	)
 	builder.SetServiceAccountName(common.CreateServiceAccountName(s.Instance.GetName()))
 	builder.SetVolumes(s.volumes())
 	builder.SetPvcTemplates(s.pvcTemplates())
+	builder.SetInitContainers(s.makeInitContainers())
 	return builder.Build(), nil
 }
 func (s *StatefulSetReconciler) CommandOverride(resource client.Object) {
@@ -88,7 +91,23 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 
 // make name node container
 func (s *StatefulSetReconciler) makeKafkaContainer() []corev1.Container {
-	return nil
+	imageSpec := s.Instance.Spec.Image
+	resourceSpec := s.MergedCfg.Config.Resources
+	zNode := s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
+	imageName := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	builder := container.NewKafkaContainerBuilder(imageName, imageSpec.PullPolicy, zNode, resourceSpec)
+	kafkaContainer := builder.Build(builder)
+	return []corev1.Container{
+		kafkaContainer,
+	}
+}
+
+// make init containers
+func (s *StatefulSetReconciler) makeInitContainers() []corev1.Container {
+	builder := container.NewFetchNodePortContainerBuilder()
+	return []corev1.Container{
+		builder.Build(builder),
+	}
 }
 
 // make volumes
@@ -136,9 +155,10 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 // tls keystore annotations
 func (s *StatefulSetReconciler) tlsKeystoreAnnotations() map[string]string {
 	return map[string]string{
-		common.SecretAnnotationClass:  string(common.Tls),
-		common.SecretAnnotationFormat: string(common.Pkcs12),
-		common.SecretAnnotationScope:  strings.Join([]string{string(common.ScopePod), string(common.ScopeNode)}, ","),
+		common.SecretAnnotationClass:          string(common.Tls),
+		common.SecretAnnotationFormat:         string(common.Pkcs12),
+		common.SecretAnnotationScope:          strings.Join([]string{string(common.ScopePod), string(common.ScopeNode)}, ","),
+		common.SecretAnnotationPKCS12Password: s.MergedCfg.Config.Ssl.KeyStorePassword,
 	}
 }
 

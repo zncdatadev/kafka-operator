@@ -4,6 +4,7 @@ import (
 	"fmt"
 	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
 	"github.com/zncdata-labs/kafka-operator/internal/common"
+	"github.com/zncdata-labs/kafka-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -11,17 +12,19 @@ import (
 type KafkaContainerBuilder struct {
 	common.ContainerBuilder
 	zookeeperDiscoveryZNode string
+	resourceSpec            *kafkav1alpha1.ResourcesSpec
 }
 
 func NewKafkaContainerBuilder(
 	image string,
 	imagePullPolicy corev1.PullPolicy,
-	resource corev1.ResourceRequirements,
 	zookeeperDiscoveryZNode string,
+	resourceSpec *kafkav1alpha1.ResourcesSpec,
 ) *KafkaContainerBuilder {
 	return &KafkaContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
+		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
+		resourceSpec:            resourceSpec,
 	}
 }
 
@@ -55,6 +58,10 @@ func (d *KafkaContainerBuilder) ContainerEnv() []corev1.EnvVar {
 			},
 		},
 	}
+}
+
+func (d *KafkaContainerBuilder) ResourceRequirements() corev1.ResourceRequirements {
+	return *util.ConvertToResourceRequirements(d.resourceSpec)
 }
 
 func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {

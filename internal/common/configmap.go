@@ -57,7 +57,6 @@ func OverrideConfigFileContent(current string, override map[string]string, confi
 	default:
 		panic(fmt.Sprintf("unknown config type: %s", configType))
 	}
-	return ""
 }
 
 // ConfigGenerator generate config
