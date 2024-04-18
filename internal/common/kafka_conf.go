@@ -113,14 +113,6 @@ func (k *KafkaConfGenerator) DataDir() string {
 	return DataMountPath + "/data/topicdata"
 }
 
-// zk connections
-
-// zk connections
-// ex: zookeeper.connect=zookeeper-service:2181
-func (k *KafkaConfGenerator) zkConnections() string {
-	return fmt.Sprintf("zookeeper.connect=localhost:2180")
-}
-
 // listener ssl properties
 // ex:
 // ssl.keystore.location=/opt/kafka/config/keystore.jks

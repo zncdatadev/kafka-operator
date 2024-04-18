@@ -1,9 +1,5 @@
 package container
 
-import (
-	"github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-)
-
 func DataVolumeName() string {
 	return "data"
 }
@@ -25,8 +21,4 @@ func ConfigmapVolumeName() string {
 }
 func ServerConfigVolumeName() string {
 	return "kafka-config"
-}
-
-func sslEnabled(sslSpec *v1alpha1.SslSpec) bool {
-	return sslSpec != nil && sslSpec.Enabled == string(v1alpha1.SslPolicyRequired)
 }

@@ -206,7 +206,7 @@ func (l *Log4jLoggingDataBuilder) makeFileLoggerProperties() map[string]string {
 	// if file appender not exists, create new default one
 	if fileAppender == NoneAppender {
 		fileAppender = DefaultFileAppender
-		properties = l.MakeDefaultFileAppenderProperties()
+		properties = l.MakeDefaultFileAppenderProperties(fileAppender)
 	} else {
 		key := fmt.Sprintf("log4j.appender.%s.Threshold", l.File.appenderName)
 		properties[key] = l.File.level
@@ -214,8 +214,8 @@ func (l *Log4jLoggingDataBuilder) makeFileLoggerProperties() map[string]string {
 	return properties
 }
 
-func (l *Log4jLoggingDataBuilder) MakeDefaultFileAppenderProperties() map[string]string {
-	prefix := fmt.Sprintf("log4j.appender.%s", DefaultFileAppender)
+func (l *Log4jLoggingDataBuilder) MakeDefaultFileAppenderProperties(fileAppender string) map[string]string {
+	prefix := fmt.Sprintf("log4j.appender.%s", fileAppender)
 	properties := make(map[string]string)
 	properties[prefix] = "org.apache.log4j.RollingFileAppender"
 	properties[prefix+".Threshold"] = l.File.level
