@@ -19,6 +19,7 @@ type ServiceBuilder struct {
 	Name      string
 	Namespace string
 	Labels    map[string]string
+	selector  map[string]string
 	Ports     []corev1.ServicePort
 
 	ClusterIP *HeadlessServiceType
@@ -49,7 +50,16 @@ func (s *ServiceBuilder) SetType(t *corev1.ServiceType) *ServiceBuilder {
 	return s
 }
 
+// SetSelector set select labels
+func (s *ServiceBuilder) SetSelector(labels map[string]string) *ServiceBuilder {
+	s.selector = labels
+	return s
+}
+
 func (s *ServiceBuilder) Build() *corev1.Service {
+	if s.selector == nil {
+		s.selector = s.Labels
+	}
 	svc := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      s.Name,
@@ -58,7 +68,7 @@ func (s *ServiceBuilder) Build() *corev1.Service {
 		},
 		Spec: corev1.ServiceSpec{
 			Ports:    s.Ports,
-			Selector: s.Labels,
+			Selector: s.selector,
 		},
 	}
 

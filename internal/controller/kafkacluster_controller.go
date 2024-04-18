@@ -67,10 +67,11 @@ func (r *KafkaClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	result, err := NewClusterReconciler(r.Client, r.Scheme, cr).ReconcileCluster(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
+	} else if result.RequeueAfter > 0 {
+		return result, nil
 	}
-
-	r.Log.Info("Successfully reconciled KafkaCluster")
-	return result, nil
+	r.Log.Info("Reconcile successfully ", "Name", cr.Name)
+	return ctrl.Result{}, nil
 }
 
 // UpdateStatus updates the status of the KafkaCluster resource

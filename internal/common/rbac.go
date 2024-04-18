@@ -90,7 +90,7 @@ func (r *GenericServiceAccountReconciler[T, G]) Build(_ context.Context) (client
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.saName,
 			Namespace: r.nameSpace,
-			Labels:    r.MergedLabels,
+			Labels:    r.Labels,
 		},
 		AutomountServiceAccountToken: &saToken,
 	}, nil
@@ -145,11 +145,6 @@ func NewRole[T client.Object](
 
 // Build implements the ResourceBuilder interface
 func (r *GenericRoleReconciler[T, G]) Build(_ context.Context) (client.Object, error) {
-	objMeta := metav1.ObjectMeta{
-		Name:      r.roleName,
-		Namespace: r.namespace,
-		Labels:    r.MergedLabels,
-	}
 	rules := []v1.PolicyRule{
 		{
 			Verbs:     r.verbs,
@@ -157,14 +152,15 @@ func (r *GenericRoleReconciler[T, G]) Build(_ context.Context) (client.Object, e
 			Resources: r.resources,
 		},
 	}
+	// Note: cluster level resource must not add namespace field
 	if r.roleType == RbacClusterRole {
 		return &v1.ClusterRole{
-			ObjectMeta: objMeta,
+			ObjectMeta: metav1.ObjectMeta{Name: r.roleName, Labels: r.Labels},
 			Rules:      rules,
 		}, nil
 	}
 	return &v1.Role{
-		ObjectMeta: objMeta,
+		ObjectMeta: metav1.ObjectMeta{Name: r.roleName, Namespace: r.namespace, Labels: r.Labels},
 		Rules:      rules,
 	}, nil
 
@@ -219,11 +215,6 @@ func NewRoleBinding[T client.Object](
 
 // Build implements the ResourceBuilder interface
 func (r *GenericRoleBindingReconciler[T, G]) Build(_ context.Context) (client.Object, error) {
-	objMeta := metav1.ObjectMeta{
-		Name:      r.roleBindingName,
-		Namespace: r.namespace,
-		Labels:    r.MergedLabels,
-	}
 	subjects := []v1.Subject{
 		{
 			Kind:      ServiceAccount,
@@ -232,23 +223,28 @@ func (r *GenericRoleBindingReconciler[T, G]) Build(_ context.Context) (client.Ob
 		},
 	}
 
-	if r.roleBindingType == RoleBinding {
-		return &v1.RoleBinding{
-			ObjectMeta: objMeta,
+	// Note: cluster level resource must not add namespace field
+	if r.roleBindingType == ClusterRoleBinding {
+		return &v1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: r.roleBindingName, Labels: r.Labels},
 			Subjects:   subjects,
 			RoleRef: v1.RoleRef{
 				APIGroup: r.apiGroup,
-				Kind:     string(RbacRole),
+				Kind:     string(RbacClusterRole),
 				Name:     r.roleName,
 			},
 		}, nil
 	}
-	return &v1.ClusterRoleBinding{
-		ObjectMeta: objMeta,
-		Subjects:   subjects,
+	return &v1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.roleBindingName,
+			Namespace: r.namespace,
+			Labels:    r.Labels,
+		},
+		Subjects: subjects,
 		RoleRef: v1.RoleRef{
 			APIGroup: r.apiGroup,
-			Kind:     string(RbacClusterRole),
+			Kind:     string(RbacRole),
 			Name:     r.roleName,
 		},
 	}, nil

@@ -9,6 +9,8 @@ metadata:
     app.kubernetes.io/created-by: kafka-operator
   name: kafkacluster-sample
 spec:
+  image:
+    repository: docker.io/bitnami/kafka
   clusterConfig:
     zookeeperDiscoveryZNode: "sample-kafka-znode"
   brokers:
@@ -32,10 +34,6 @@ spec:
               file:
                 level: ERROR
           ssl:
-            enabled: "required"
+            enabled: "none"
             keystoreType: PKCS12
             keystorePassword: "123456"
-            truststoreType: PKCS12
-            truststorePassword: "123456"
-
-  # TODO(user): Add fields here

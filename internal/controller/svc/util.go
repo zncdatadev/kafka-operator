@@ -23,3 +23,7 @@ const (
 	PodServiceClientPort   = 9092
 	PodServiceInternalPort = 19092
 )
+
+func createStatefulSetName(instanceName string, groupName string) string {
+	return util.NewResourceNameGenerator(instanceName, string(common.Broker), groupName).GenerateResourceName("")
+}

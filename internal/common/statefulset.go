@@ -52,7 +52,7 @@ var VolumeTypeHandlers = map[VolumeSourceType]func(string, *VolumeSourceParams) 
 		return corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{
 				SizeLimit: func() *resource.Quantity {
-					if params.EmptyVolumeLimit != "" {
+					if params != nil && params.EmptyVolumeLimit != "" {
 						q := resource.MustParse(params.EmptyVolumeLimit)
 						return &q
 					}
@@ -124,8 +124,10 @@ type VolumeSpec struct {
 
 func CreateListenPvcTemplate(annotations map[string]string, storageClass *string,
 	accessMode []corev1.PersistentVolumeAccessMode, storageSize string) *corev1.PersistentVolumeClaimTemplate {
+	mode := corev1.PersistentVolumeFilesystem
 	pvcTemplate := &corev1.PersistentVolumeClaimTemplate{
 		Spec: corev1.PersistentVolumeClaimSpec{
+			VolumeMode:       &mode,
 			StorageClassName: storageClass,
 			AccessModes:      accessMode,
 			Resources: corev1.VolumeResourceRequirements{
@@ -224,6 +226,7 @@ func (s *StatefulSetBuilder) createVolumes() []corev1.Volume {
 // create statefulSet pvcTemplates
 func (s *StatefulSetBuilder) createPvcTemplates() []corev1.PersistentVolumeClaim {
 	pvcTemplates := make([]corev1.PersistentVolumeClaim, 0)
+	mode := corev1.PersistentVolumeFilesystem
 	for _, v := range s.PvcTemplates {
 		pvcTemplates = append(pvcTemplates, corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
@@ -231,6 +234,7 @@ func (s *StatefulSetBuilder) createPvcTemplates() []corev1.PersistentVolumeClaim
 				Namespace: s.NameSpace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
+				VolumeMode:       &mode,
 				AccessModes:      v.AccessModes,
 				StorageClassName: v.StorageClass,
 				Resources: corev1.VolumeResourceRequirements{

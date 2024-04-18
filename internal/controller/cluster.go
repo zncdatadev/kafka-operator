@@ -45,8 +45,8 @@ func (c *ClusterReconciler) RegisterResource() {
 		InstanceName: c.cr.Name,
 	}
 	sa := NewServiceAccount(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
-	role := NewClusterRole(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
-	roleBinding := NewClusterRoleBinding(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
+	role := NewRole(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
+	roleBinding := NewRoleBinding(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
 	svc := svc2.NewClusterService(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
 	c.resourceReconcilers = []common.ResourceReconciler{sa, role, roleBinding, svc}
 }
@@ -93,9 +93,9 @@ func (c *ClusterReconciler) preReconcile() {
 	// merge all the role-group cfg of roles, and cache it
 	// because of existing role group config circle reference
 	// we need to cache it before reconcile
-	//for _, r := range c.roleReconcilers {
-	//	r.CacheRoleGroupConfig()
-	//}
+	for _, r := range c.roleReconcilers {
+		r.CacheRoleGroupConfig()
+	}
 }
 
 func (c *ClusterReconciler) ReconcileDiscovery(ctx context.Context) (ctrl.Result, error) {

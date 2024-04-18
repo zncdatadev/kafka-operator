@@ -1,10 +1,8 @@
-package controller
+package common
 
 import (
 	"fmt"
 	"github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"github.com/zncdata-labs/kafka-operator/internal/common"
-	"github.com/zncdata-labs/kafka-operator/internal/controller/container"
 	"strings"
 )
 
@@ -24,7 +22,7 @@ log4j.appender.CONSOLE.layout.ConversionPattern=[%d] %p %m (%c)%n
 
 log4j.appender.FILE=org.apache.log4j.RollingFileAppender
 log4j.appender.FILE.Threshold=INFO
-log4j.appender.FILE.File=/zncdata/log/kafka/kafka.log
+log4j.appender.FILE.File=/bitnami/log/kafka.log
 log4j.appender.FILE.MaxFileSize=5MB
 log4j.appender.FILE.MaxBackupIndex=1
 log4j.appender.FILE.layout=org.apache.log4j.PatternLayout
@@ -54,8 +52,7 @@ func (g *SecurityConfGenerator) FileName() string {
 
 // KafkaConfGenerator kafka config generator
 type KafkaConfGenerator struct {
-	sslSpec      *v1alpha1.SslSpec
-	svcDnsDomain string
+	SslSpec *v1alpha1.SslSpec
 }
 
 const serverProperties = `
@@ -78,31 +75,23 @@ zookeeper.connection.timeout.ms=18000
 
 func (k *KafkaConfGenerator) Generate() string {
 	return serverProperties + "\n" +
-		k.listeners() + "\n" +
-		k.interBrokerListenerName() + "\n" +
-		k.advertisedListeners() + "\n" +
-		k.listenerSslProperties(k.sslSpec) + "\n" +
-		k.dataDir() + "\n" +
-		k.zkConnections() + "\n" +
-		k.listenerSecurityProtocolMap(k.sslSpec)
+		"listeners=" + k.Listeners() + "\n" +
+		"inter.broker.listener.name=" + k.InterBrokerListenerName() + "\n" +
+		k.listenerSslProperties(k.SslSpec) + "\n" +
+		"log.dirs=" + k.DataDir() + "\n" +
+		//k.zkConnections() + "\n" +
+		"listener.security.protocol.map=" + k.ListenerSecurityProtocolMap(k.SslSpec)
 }
 
 func (k *KafkaConfGenerator) FileName() string {
 	return v1alpha1.ServerFileName
 }
 
-type ListenerName string
-
-const (
-	CLIENT   ListenerName = "CLIENT"
-	INTERNAL ListenerName = "INTERNAL"
-)
-
 const interListerName = INTERNAL
 
-// inter broker listener name
-func (k *KafkaConfGenerator) interBrokerListenerName() string {
-	return fmt.Sprintf("inter.broker.listener.name=%s", interListerName)
+// InterBrokerListenerName inter broker listener name
+func (k *KafkaConfGenerator) InterBrokerListenerName() string {
+	return string(interListerName)
 }
 
 // listener prefix
@@ -110,40 +99,31 @@ func (k *KafkaConfGenerator) listenerPrefix(listenerName ListenerName) string {
 	return fmt.Sprintf("listener.name.%s.", strings.ToLower(string(listenerName)))
 }
 
-// listeners
+// Listeners listeners
 // contains 3 listeners: CLIENT, CLUSTER, EXTERNAL
 // listeners=CLIENT://:9092,ClUSTER://:19092,EXTERNAL://:{nodePort}
-func (k *KafkaConfGenerator) listeners() string {
-	return fmt.Sprintf("listeners=%s://:%d,%s://:%d", CLIENT, v1alpha1.KafkaClientPort,
+func (k *KafkaConfGenerator) Listeners() string {
+	return fmt.Sprintf("%s://:%d,%s://:%d", CLIENT, v1alpha1.KafkaClientPort,
 		INTERNAL, v1alpha1.InternalPort)
 }
 
-// advertised.listeners
-// contains 3 listeners: CLIENT, CLUSTER, EXTERNAL
-// advertised.listeners=CLIENT://${env.NODE}:${env.NODE_PORT},INTERNAL://${env.POD_NAME}.simple-kafka-broker-default.default.svc.cluster.local:19093
-func (k *KafkaConfGenerator) advertisedListeners() string {
-	url := fmt.Sprintf("${env.%s}.%s", container.EnvPodName, k.svcDnsDomain)
-	return fmt.Sprintf("advertised.listeners=%s://${env.%s}:${env.%s},%s://%s:%d",
-		CLIENT, container.EnvNode, container.EnvNodePort, INTERNAL, url, v1alpha1.InternalPort)
-}
-
-// listenerSecurityProtocolMap
+// ListenerSecurityProtocolMap
 // contains 3 listeners: CLIENT, CLUSTER, EXTERNAL
 // listener.security.protocol.map=CLIENT:PLAINTEXT,CLUSTER:PLAINTEXT,EXTERNAL:PLAINTEXT
-func (k *KafkaConfGenerator) listenerSecurityProtocolMap(sslSpec *v1alpha1.SslSpec) string {
-	var protocol common.SecurityProtocol
-	if sslEnabled(sslSpec) {
-		protocol = common.Ssl
+func (k *KafkaConfGenerator) ListenerSecurityProtocolMap(sslSpec *v1alpha1.SslSpec) string {
+	var protocol SecurityProtocol
+	if SslEnabled(sslSpec) {
+		protocol = Ssl
 	} else {
-		protocol = common.Plaintext
+		protocol = Plaintext
 	}
-	return fmt.Sprintf("listener.security.protocol.map=%s:PLAINTEXT,%s:%s", CLIENT, INTERNAL, string(protocol))
+	return fmt.Sprintf("%s:PLAINTEXT,%s:%s", CLIENT, INTERNAL, string(protocol))
 }
 
-// data dir
+// DataDir data dir
 // ex: log.dirs=/var/lib/zookeeper/data
-func (k *KafkaConfGenerator) dataDir() string {
-	return fmt.Sprintf("log.dirs=%s", container.DataMountPath+"/data/topicdata")
+func (k *KafkaConfGenerator) DataDir() string {
+	return DataMountPath + "/data/topicdata"
 }
 
 // zk connections
@@ -151,24 +131,69 @@ func (k *KafkaConfGenerator) dataDir() string {
 // zk connections
 // ex: zookeeper.connect=zookeeper-service:2181
 func (k *KafkaConfGenerator) zkConnections() string {
-	return fmt.Sprintf("zookeeper.connect=${env." + container.EnvZookeeperConnections + "}")
+	return fmt.Sprintf("zookeeper.connect=localhost:2180")
 }
 
 // listener ssl properties
-// listener ssl properties
+// ex:
 // ssl.keystore.location=/opt/kafka/config/keystore.jks
 // ssl.keystore.password=${env.KAFKA_SSL_KEYSTORE_PASSWORD}
 // ssl.key.password=${env.KAFKA_SSL_KEY_PASSWORD}
 // ssl.truststore.location=/opt/kafka/config/truststore.jks
 // ssl.truststore.password=${env.KAFKA_SSL_TRUSTSTORE_PASSWORD}
 func (k *KafkaConfGenerator) listenerSslProperties(sslSpec *v1alpha1.SslSpec) string {
-	if sslEnabled(sslSpec) {
-		return fmt.Sprintf(k.listenerPrefix(interListerName) + ".ssl.keystore.location=" + container.TlsKeystoreMountPath + "/keystore.jks\n" +
+	if SslEnabled(sslSpec) {
+		return fmt.Sprintf(k.listenerPrefix(interListerName) + ".ssl.keystore.location=" + TlsKeystoreMountPath + "/keystore.jks\n" +
 			k.listenerPrefix(interListerName) + "ssl.keystore.password=" + sslSpec.KeyStorePassword + "\n" +
 			k.listenerPrefix(interListerName) + "ssk.keystore.type=" + sslSpec.KeyStoreType + "\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.location=" + container.TlsKeystoreMountPath + "/truststore.jks\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.password=" + sslSpec.TrustStorePassword + "\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.type=" + sslSpec.TrustStoreType)
+			k.listenerPrefix(interListerName) + "ssl.truststore.location=" + TlsKeystoreMountPath + "/truststore.jks\n" +
+			k.listenerPrefix(interListerName) + "ssl.truststore.password=" + sslSpec.KeyStorePassword + "\n" +
+			k.listenerPrefix(interListerName) + "ssl.truststore.type=" + sslSpec.KeyStoreType)
 	}
 	return ""
 }
+
+func TlsKeystoreInternalVolumeName() string {
+	return "tls-keystore-internal"
+}
+
+const TlsDir = "tls-keystore-internal"
+
+const (
+	FetchNodePort ContainerComponent = "fetch-node-port"
+	Kafka         ContainerComponent = "kafka"
+)
+
+// mount
+const (
+	TlsKeystoreMountPath    = "/zncdata/" + TlsDir
+	TlsPkcs12KeyStorePath   = TlsKeystoreMountPath + "/keystore.p12"
+	TlsPkcs12TruststorePath = TlsKeystoreMountPath + "/truststore.p12"
+	DataMountPath           = "/bitnami/kafka"
+	LogMountPath            = "/opt/bitnami/kafka/logs"
+	ConfigMountPath         = "/opt/bitnami/kafka/config/server.properties"
+	Log4jMountPath          = "/opt/bitnami/kafka/config/log4j.properties"
+
+	NodePortMountPath = "/zncdata/tmp"
+	NodePortFileName  = "kafka_nodeport"
+
+	ConfigMapMountPath    = "/configmaps"
+	ServerConfigMountPath = "/config"
+)
+
+// env
+
+const (
+	EnvZookeeperConnections        = "KAFKA_CFG_ZOOKEEPER_CONNECT"
+	EnvNode                        = "ENV_NODE"
+	EnvNodePort                    = "NODE_PORT"
+	EnvPodName                     = "POD_NAME"
+	EnvListeners                   = "KAFKA_CFG_LISTENERS"
+	EnvAdvertisedListeners         = "KAFKA_CFG_ADVERTISED_LISTENERS"
+	EnvListenerSecurityProtocolMap = "KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP"
+	//ssl
+	EnvCertificatePass       = "KAFKA_CERTIFICATE_PASSWORD"
+	EnvTlsTrustStoreLocation = "KAFKA_TLS_TRUSTSTORE_FILE"
+	EnvTlsType               = "KAFKA_TLS_TYPE"
+	EnvTlsEnableFlag         = "KAFKA_TLS_CLIENT_AUTH"
+)

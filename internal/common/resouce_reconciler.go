@@ -37,6 +37,12 @@ type ResourceReconciler interface {
 	ReconcileResource(ctx context.Context, builder ResourceBuilderType) (ctrl.Result, error)
 }
 
+// ResourceValidator validate the resource is satisfied or completed
+// such as workload's replicas, multi resources is created completely
+type ResourceValidator interface {
+	Validate(ctx context.Context) (ctrl.Result, error)
+}
+
 type ResourceBuilder interface {
 	Build(ctx context.Context) (client.Object, error)
 }
@@ -67,15 +73,23 @@ type ConfigurationOverride interface {
 	ConfigurationOverride(resource client.Object)
 }
 
+type ResourceScope string
+
+const (
+	ScopeNameSpace ResourceScope = "namespace"
+	ScopeCluster   ResourceScope = "cluster"
+)
+
 type BaseResourceReconciler[T client.Object, G any] struct {
 	Instance  T
 	Scheme    *runtime.Scheme
 	Client    client.Client
 	GroupName string
 
-	MergedLabels map[string]string
-	MergedCfg    G
-	owner        metav1.Object
+	Labels    map[string]string
+	MergedCfg G
+	owner     metav1.Object
+	scope     *ResourceScope
 }
 
 // NewBaseResourceReconciler new a BaseResourceReconciler
@@ -87,18 +101,25 @@ func NewBaseResourceReconciler[T client.Object, G any](
 	mergedLabels map[string]string,
 	mergedCfg G) *BaseResourceReconciler[T, G] {
 	return &BaseResourceReconciler[T, G]{
-		Instance:     instance,
-		Scheme:       scheme,
-		Client:       client,
-		GroupName:    groupName,
-		MergedLabels: mergedLabels,
-		MergedCfg:    mergedCfg,
+		Instance:  instance,
+		Scheme:    scheme,
+		Client:    client,
+		GroupName: groupName,
+		Labels:    mergedLabels,
+		MergedCfg: mergedCfg,
 	}
 }
 
 // SetOwner set owner
 func (b *BaseResourceReconciler[T, G]) SetOwner(owner metav1.Object) *BaseResourceReconciler[T, G] {
 	b.owner = owner
+	return b
+}
+
+// SetScope set Scope
+// cluster scoped should not set namespace, and also not set owner
+func (b *BaseResourceReconciler[T, G]) SetScope(scope *ResourceScope) *BaseResourceReconciler[T, G] {
+	b.scope = scope
 	return b
 }
 
@@ -129,12 +150,18 @@ func (b *BaseResourceReconciler[T, G]) Apply(
 	if dep == nil {
 		return ctrl.Result{}, nil
 	}
-	if b.owner == nil {
-		b.owner = b.Instance
+	if b.scope != nil && *b.scope == ScopeCluster {
+		// cluster scope need not set owner reference
+		// cluster scoped should not set namespace, and also not set owner
+	} else {
+		if b.owner == nil {
+			b.owner = b.Instance
+		}
+		if err := ctrl.SetControllerReference(b.owner, dep, b.Scheme); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
-	if err := ctrl.SetControllerReference(b.owner, dep, b.Scheme); err != nil {
-		return ctrl.Result{}, err
-	}
+
 	mutant, err := util.CreateOrUpdate(ctx, b.Client, dep)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -145,6 +172,8 @@ func (b *BaseResourceReconciler[T, G]) Apply(
 	}
 	return ctrl.Result{}, nil
 }
+
+//
 
 // GeneralResourceStyleReconciler general style resource reconcile
 // this reconciler is used to reconcile the general style resources
@@ -353,7 +382,7 @@ func (s *WorkloadStyleReconciler[T, G]) CheckPodsSatisfied(ctx context.Context, 
 	// Check if the pods are satisfied
 	satisfied, err := s.CheckPodReplicas(ctx)
 	if err != nil {
-		log.Error(err, "failed to check if the pods are satisfied", "labels", s.MergedLabels)
+		log.Error(err, "failed to check if the pods are satisfied", "labels", s.Labels)
 		return ctrl.Result{}, err
 	}
 
@@ -365,7 +394,7 @@ func (s *WorkloadStyleReconciler[T, G]) CheckPodsSatisfied(ctx context.Context, 
 			handler,
 		)
 		if err != nil {
-			log.Error(err, "failed to update status when workload is satisfied", "labels", s.MergedLabels)
+			log.Error(err, "failed to update status when workload is satisfied", "labels", s.Labels)
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -378,7 +407,7 @@ func (s *WorkloadStyleReconciler[T, G]) CheckPodsSatisfied(ctx context.Context, 
 		handler,
 	)
 	if err != nil {
-		log.Error(err, "failed to update status when workload is not satisfied", "labels", s.MergedLabels)
+		log.Error(err, "failed to update status when workload is not satisfied", "labels", s.Labels)
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
@@ -388,7 +417,7 @@ func (s *WorkloadStyleReconciler[T, G]) CheckPodReplicas(ctx context.Context) (b
 	pods := corev1.PodList{}
 	podListOptions := []client.ListOption{
 		client.InNamespace(s.Instance.GetNamespace()),
-		client.MatchingLabels(s.MergedLabels),
+		client.MatchingLabels(s.Labels),
 	}
 	err := s.Client.List(ctx, &pods, podListOptions...)
 	if err != nil {
@@ -470,6 +499,10 @@ func (s *MultiResourceReconciler[T, G]) ReconcileResource(
 		} else {
 			panic(fmt.Sprintf("resource is not ResourceHandler, actual is - %T", resource))
 		}
+	}
+
+	if validator, ok := resInstance.(ResourceValidator); ok {
+		return validator.Validate(ctx)
 	}
 	return ctrl.Result{}, nil
 }

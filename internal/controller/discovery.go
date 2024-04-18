@@ -47,7 +47,7 @@ func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      d.Instance.GetName(),
 			Namespace: d.Instance.Namespace,
-			Labels:    d.MergedLabels,
+			Labels:    d.Labels,
 		},
 		Data: map[string]string{
 			discoveryKey: dnsDomain,

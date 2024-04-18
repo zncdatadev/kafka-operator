@@ -8,8 +8,8 @@ import (
 )
 
 var serviceAccountName = func(instanceName string) string { return common.CreateServiceAccountName(instanceName) }
-var clusterRoleName = "kafka-clusterrole"
-var clusterRoleBindingName = "kafka-clusterrolebinding"
+var roleName = "kafka-role"
+var roleBindingName = "kafka-rolebinding"
 
 // NewServiceAccount new a ServiceAccountReconciler
 func NewServiceAccount(
@@ -23,8 +23,8 @@ func NewServiceAccount(
 		serviceAccountName(instance.GetName()), instance.GetNamespace())
 }
 
-// NewClusterRole new a ClusterRoleReconciler
-func NewClusterRole(
+// NewRole new a ClusterRoleReconciler
+func NewRole(
 	scheme *runtime.Scheme,
 	instance *kafkav1alpha1.KafkaCluster,
 	client client.Client,
@@ -38,18 +38,17 @@ func NewClusterRole(
 		"",
 		mergedLabels,
 		mergedCfg,
-
-		common.RbacClusterRole,
-		clusterRoleName,
+		common.RbacRole,
+		roleName,
 		[]common.VerbType{common.Get, common.List, common.Watch},
-		nil,
-		[]common.ResourceType{common.ServiceAccounts, common.ConfigMaps, common.Pods, common.Services, common.StatefulSets},
+		[]string{""},
+		[]common.ResourceType{common.Services},
 		instance.Namespace,
 	)
 }
 
-// NewClusterRoleBinding new a ClusterRoleBindingReconciler
-func NewClusterRoleBinding(
+// NewRoleBinding new a ClusterRoleBindingReconciler
+func NewRoleBinding(
 	scheme *runtime.Scheme,
 	instance *kafkav1alpha1.KafkaCluster,
 	client client.Client,
@@ -65,9 +64,9 @@ func NewClusterRoleBinding(
 		mergedCfg,
 
 		"",
-		common.ClusterRoleBinding,
-		clusterRoleBindingName,
-		clusterRoleName,
+		common.RoleBinding,
+		roleBindingName,
+		roleName,
 		serviceAccountName(instance.GetName()),
 		instance.GetNamespace(),
 	)

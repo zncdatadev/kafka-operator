@@ -34,8 +34,8 @@ const (
 
 	KafkaClientPort           = 9092
 	InternalPort              = 19092
-	PodSvcClientNodePortMin   = 29092
-	PodSvcInternalNodePortMin = 39092
+	PodSvcClientNodePortMin   = 30092
+	PodSvcInternalNodePortMin = 31092
 )
 
 type SslPolicy string
@@ -185,8 +185,6 @@ type BrokersConfigSpec struct {
 	Logging *BrokersContainerLoggingSpec `json:"logging,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=required;requested;none
-	// +kubebuilder:default:="none"
 	Ssl *SslSpec `json:"ssl,omitempty"`
 }
 
@@ -203,13 +201,6 @@ type SslSpec struct {
 	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS;KERBEROS
 	// +kubebuilder:default:="PKCS12"
 	KeyStoreType string `json:"keystoreType,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	TrustStorePassword string `json:"truststorePassword,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS
-	TrustStoreType string `json:"truststoreType,omitempty"`
 }
 
 type BrokersContainerLoggingSpec struct {

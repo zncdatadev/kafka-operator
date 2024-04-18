@@ -72,7 +72,7 @@ func (l *LoggingRecociler[T, G]) Build(_ context.Context) (client.Object, error)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      l.ConfigmapName,
 			Namespace: l.Instance.GetNamespace(),
-			Labels:    l.MergedLabels,
+			Labels:    l.Labels,
 		},
 		Data: cmData,
 	}

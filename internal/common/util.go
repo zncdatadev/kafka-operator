@@ -37,7 +37,11 @@ func CreateNetworkUrl(podName string, svcName, namespace, clusterDomain string, 
 }
 
 func CreateDnsDomain(svcName, namespace, clusterDomain string, port int32) string {
-	return fmt.Sprintf("%s.%s.svc.%s:%d", svcName, namespace, clusterDomain, port)
+	return fmt.Sprintf("%s:%d", CreateDomainHost(svcName, namespace, clusterDomain), port)
+}
+
+func CreateDomainHost(svcName, namespace, clusterDomain string) string {
+	return fmt.Sprintf("%s.%s.svc.%s", svcName, namespace, clusterDomain)
 }
 
 // CreatePodNamesByReplicas create pod names by replicas
@@ -105,4 +109,30 @@ func CreateLog4jBuilder(containerLogging *kafkav1alpha1.LoggingConfigSpec, conso
 	}
 
 	return log4jBuilder
+}
+func CreateGroupServiceName(instanceName string, groupName string) string {
+	return util.NewResourceNameGenerator(instanceName, string(Broker), groupName).GenerateResourceName("")
+}
+
+type ListenerName string
+
+const (
+	CLIENT   ListenerName = "CLIENT"
+	INTERNAL ListenerName = "INTERNAL"
+)
+
+func CreateListener(listenerName ListenerName, host string, port string) string {
+	return fmt.Sprintf("%s://%s:%s", listenerName, host, port)
+}
+
+func K8sEnvRef(envName string) string {
+	return fmt.Sprintf("$(%s)", envName)
+}
+
+func LinuxEnvRef(envName string) string {
+	return fmt.Sprintf("$%s", envName)
+}
+
+func SslEnabled(sslSpec *kafkav1alpha1.SslSpec) bool {
+	return sslSpec != nil && sslSpec.Enabled == string(kafkav1alpha1.SslPolicyRequired)
 }

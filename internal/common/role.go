@@ -72,6 +72,7 @@ func ReconcilerDoHandler(ctx context.Context, reconcilers []ResourceReconciler) 
 				return res, nil
 			}
 		} else if multi, ok := r.(MultiResourceReconcilerBuilder); ok {
+			// todo : assert reconciler is MultiResourceReconciler
 			res, err := r.ReconcileResource(ctx, NewMultiResourceBuilder(multi))
 			if err != nil {
 				return ctrl.Result{}, err

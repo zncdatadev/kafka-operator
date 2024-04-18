@@ -47,7 +47,7 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	builder := common.NewStatefulSetBuilder(
 		createStatefulSetName(s.Instance.GetName(), s.GroupName),
 		s.Instance.Namespace,
-		s.MergedLabels,
+		s.Labels,
 		s.Replicas,
 		svc.CreateGroupServiceName(s.Instance.GetName(), s.GroupName),
 		s.makeKafkaContainer(),
@@ -63,7 +63,7 @@ func (s *StatefulSetReconciler) CommandOverride(resource client.Object) {
 	containers := dep.Spec.Template.Spec.Containers
 	if cmdOverride := s.MergedCfg.CommandArgsOverrides; cmdOverride != nil {
 		for i := range containers {
-			if containers[i].Name == string(container.Kafka) {
+			if containers[i].Name == string(common.Kafka) {
 				containers[i].Command = cmdOverride
 				break
 			}
@@ -76,7 +76,7 @@ func (s *StatefulSetReconciler) EnvOverride(resource client.Object) {
 	containers := dep.Spec.Template.Spec.Containers
 	if envOverride := s.MergedCfg.EnvOverrides; envOverride != nil {
 		for i := range containers {
-			if containers[i].Name == string(container.Kafka) {
+			if containers[i].Name == string(common.Kafka) {
 				envVars := containers[i].Env
 				common.OverrideEnvVars(&envVars, s.MergedCfg.EnvOverrides)
 				break
@@ -96,7 +96,9 @@ func (s *StatefulSetReconciler) makeKafkaContainer() []corev1.Container {
 	sslSpec := s.MergedCfg.Config.Ssl
 	zNode := s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
 	imageName := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
-	builder := container.NewKafkaContainerBuilder(imageName, imageSpec.PullPolicy, zNode, resourceSpec, sslSpec)
+	groupSvcName := svc.CreateGroupServiceName(s.Instance.GetName(), s.GroupName)
+	svcHost := common.CreateDomainHost(groupSvcName, s.Instance.GetNamespace(), s.Instance.Spec.ClusterConfigSpec.ClusterDomain)
+	builder := container.NewKafkaContainerBuilder(imageName, imageSpec.PullPolicy, zNode, resourceSpec, sslSpec, svcHost)
 	kafkaContainer := builder.Build(builder)
 	return []corev1.Container{
 		kafkaContainer,
@@ -115,16 +117,28 @@ func (s *StatefulSetReconciler) makeInitContainers() []corev1.Container {
 func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 	volumes := []common.VolumeSpec{
 		{
-			Name:       container.ConfigVolumeName(),
-			SourceType: common.ConfigMap,
-			Params: &common.VolumeSourceParams{
-				ConfigMap: common.ConfigMapSpec{
-					Name: common.CreateConfigName(s.Instance.GetName(), s.GroupName),
-					KeyPath: []corev1.KeyToPath{
-						{Key: kafkav1alpha1.ServerFileName, Path: "server.properties"},
-					},
-				}},
+			Name:       container.NodePortVolumeName(),
+			SourceType: common.EmptyDir,
+			Params:     &common.VolumeSourceParams{},
 		},
+		{
+			Name:       container.Log4jLoggingVolumeName(),
+			SourceType: common.EmptyDir,
+			Params: &common.VolumeSourceParams{
+				EmptyVolumeLimit: "40Mi",
+			},
+		},
+		//{
+		//	Name:       container.ConfigmapVolumeName(),
+		//	SourceType: common.ConfigMap,
+		//	Params: &common.VolumeSourceParams{
+		//		ConfigMap: common.ConfigMapSpec{
+		//			Name: common.CreateConfigName(s.Instance.GetName(), s.GroupName),
+		//			KeyPath: []corev1.KeyToPath{
+		//				{Key: kafkav1alpha1.ServerFileName, Path: "server.properties"},
+		//			},
+		//		}},
+		//},
 		{
 			Name:       container.Log4jVolumeName(),
 			SourceType: common.ConfigMap,
@@ -136,10 +150,14 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 					},
 				}},
 		},
+		{
+			Name:       container.ServerConfigVolumeName(),
+			SourceType: common.EmptyDir,
+		},
 	}
-	if sslEnabled(s.MergedCfg.Config.Ssl) {
+	if common.SslEnabled(s.MergedCfg.Config.Ssl) {
 		volumes = append(volumes, common.VolumeSpec{
-			Name:       container.TlsKeystoreInternalVolumeName(),
+			Name:       common.TlsKeystoreInternalVolumeName(),
 			SourceType: common.EphemeralSecret,
 			Params: &common.VolumeSourceParams{
 				EphemeralSecret: &common.EphemeralSecretSpec{
@@ -157,6 +175,7 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 }
 
 // tls keystore annotations
+// todo: cr define
 func (s *StatefulSetReconciler) tlsKeystoreAnnotations() map[string]string {
 	return map[string]string{
 		common.SecretAnnotationClass:          string(common.Tls),
@@ -171,6 +190,7 @@ func (s *StatefulSetReconciler) pvcTemplates() []common.VolumeClaimTemplateSpec 
 		{
 			Name: container.DataVolumeName(),
 			PvcSpec: common.PvcSpec{
+
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				StorageSize: "2Gi",
 			},

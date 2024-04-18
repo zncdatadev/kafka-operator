@@ -4,7 +4,6 @@ import (
 	"fmt"
 	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
 	"github.com/zncdata-labs/kafka-operator/internal/common"
-	"github.com/zncdata-labs/kafka-operator/internal/controller/container"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +42,7 @@ func (l *LogDataBuilder) MakeContainerLogData() map[string]string {
 	cmData := &l.currentConfigMap.Data
 	if logging := l.cfg.Config.Logging; logging != nil {
 		if kafka := logging.Broker; kafka != nil {
-			l.OverrideConfigMapData(cmData, container.Kafka, kafka)
+			l.OverrideConfigMapData(cmData, common.Kafka, kafka)
 		}
 	}
 	return *cmData

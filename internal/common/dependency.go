@@ -27,7 +27,7 @@ const SecretAnnotationPKCS12Password = SecretStorageClass + "/tlsPKCS12Password"
 type SecretClass string
 
 const (
-	Tls SecretClass = "tls"
+	Tls SecretClass = "auto-tls"
 )
 
 type SecretFormat string
