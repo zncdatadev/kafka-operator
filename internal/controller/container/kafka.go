@@ -118,11 +118,11 @@ func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
 		//	MountPath: common.ConfigMountPath,
 		//	SubPath:   kafkav1alpha1.ServerFileName,
 		//},
-		//{
-		//	Name:      Log4jVolumeName(),
-		//	MountPath: common.Log4jMountPath,
-		//	SubPath:   kafkav1alpha1.Log4jFileName,
-		//},
+		{
+			Name:      Log4jVolumeName(),
+			MountPath: common.Log4jMountPath,
+			SubPath:   kafkav1alpha1.Log4jFileName,
+		},
 		{
 			Name:      Log4jLoggingVolumeName(),
 			MountPath: common.LogMountPath,

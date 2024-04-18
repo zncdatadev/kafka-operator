@@ -177,6 +177,6 @@ func (p *PodServiceReconciler) Validate(ctx context.Context) (ctrl.Result, error
 			len(serviceList.Items), "replicas", p.replicas, "labels", p.Labels)
 		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
 	}
-	podServiceLog.V(4).Info("pod service validate success", "service count", len(serviceList.Items), "labels", p.Labels)
+	podServiceLog.V(1).Info("pod service validate success", "service count", len(serviceList.Items), "labels", p.Labels)
 	return ctrl.Result{}, nil
 }

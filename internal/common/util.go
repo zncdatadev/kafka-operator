@@ -78,12 +78,14 @@ func CreateRoleCfgCacheKey(instanceName string, role Role, groupName string) str
 }
 
 const (
-	ConsoleLogAppender = "CONSOLE"
-	FileLogAppender    = "FILE"
+	DefaultFileAppender = "FILE"
+	NoneAppender        = "None"
+	ConsoleLogAppender  = "kafkaAppender"
+	FileLogAppender     = NoneAppender
 )
 
 func CreateLog4jBuilder(containerLogging *kafkav1alpha1.LoggingConfigSpec, consoleAppenderName,
-	fileAppenderName string) *Log4jLoggingDataBuilder {
+	fileAppenderName string, fileLogLocation string) *Log4jLoggingDataBuilder {
 	log4jBuilder := &Log4jLoggingDataBuilder{}
 	if loggers := containerLogging.Loggers; loggers != nil {
 		var builderLoggers []LogBuilderLoggers
@@ -103,8 +105,9 @@ func CreateLog4jBuilder(containerLogging *kafkav1alpha1.LoggingConfigSpec, conso
 	}
 	if file := containerLogging.File; file != nil {
 		log4jBuilder.File = &LogBuilderAppender{
-			appenderName: fileAppenderName,
-			level:        file.Level,
+			appenderName:       fileAppenderName,
+			level:              file.Level,
+			defaultLogLocation: fileLogLocation,
 		}
 	}
 

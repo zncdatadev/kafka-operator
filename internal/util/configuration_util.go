@@ -81,7 +81,7 @@ func ScanProperties(current string, properties *[]NameValuePair) error {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix("#", line) || len(line) == 0 {
+		if strings.HasPrefix(line, "#") || len(line) == 0 {
 			continue
 		}
 

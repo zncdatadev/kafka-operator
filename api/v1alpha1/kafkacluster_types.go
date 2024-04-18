@@ -208,7 +208,6 @@ type BrokersContainerLoggingSpec struct {
 	Broker *LoggingConfigSpec `json:"broker,omitempty"`
 }
 type ConfigOverridesSpec struct {
-	Server   map[string]string `json:"server.properties,omitempty"`
 	Log4j    map[string]string `json:"log4j.properties,omitempty"`
 	Security map[string]string `json:"security.properties,omitempty"`
 }

@@ -119,6 +119,8 @@ func (l *OverrideExistLoggingRecociler[T, G]) OverrideExist(exist *corev1.Config
 // todo: support other log framework, such as logback, log4j2 etc
 type LoggingPluggingDataBuilder interface {
 	MakeContainerLogProperties(origin string) string
+
+	MakeDefaultFileAppenderProperties() map[string]string
 }
 
 type LogBuilderLoggers struct {
@@ -127,8 +129,9 @@ type LogBuilderLoggers struct {
 }
 
 type LogBuilderAppender struct {
-	appenderName string
-	level        string
+	appenderName       string
+	level              string
+	defaultLogLocation string
 }
 
 type Log4jLoggingDataBuilder struct {
@@ -198,8 +201,28 @@ func (l *Log4jLoggingDataBuilder) makeFileLoggerProperties() map[string]string {
 	if l.File == nil {
 		return nil
 	}
+	fileAppender := l.File.appenderName
 	properties := make(map[string]string)
-	key := fmt.Sprintf("log4j.appender.%s.Threshold", l.File.appenderName)
-	properties[key] = l.File.level
+	// if file appender not exists, create new default one
+	if fileAppender == NoneAppender {
+		fileAppender = DefaultFileAppender
+		properties = l.MakeDefaultFileAppenderProperties()
+	} else {
+		key := fmt.Sprintf("log4j.appender.%s.Threshold", l.File.appenderName)
+		properties[key] = l.File.level
+	}
+	return properties
+}
+
+func (l *Log4jLoggingDataBuilder) MakeDefaultFileAppenderProperties() map[string]string {
+	prefix := fmt.Sprintf("log4j.appender.%s", DefaultFileAppender)
+	properties := make(map[string]string)
+	properties[prefix] = "org.apache.log4j.RollingFileAppender"
+	properties[prefix+".Threshold"] = l.File.level
+	properties[prefix+".MaxFileSize"] = "5MB"
+	properties[prefix+".MaxBackupIndex"] = "1"
+	properties[prefix+".layout"] = "org.apache.log4j.PatternLayout"
+	properties[prefix+".layout.ConversionPattern"] = "%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n"
+	properties[prefix+".File"] = l.File.defaultLogLocation
 	return properties
 }

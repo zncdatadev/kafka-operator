@@ -1512,10 +1512,6 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
-                      server.properties:
-                        additionalProperties:
-                          type: string
-                        type: object
                     type: object
                   envOverrides:
                     additionalProperties:
@@ -3143,10 +3139,6 @@ spec:
                                 type: string
                               type: object
                             security.properties:
-                              additionalProperties:
-                                type: string
-                              type: object
-                            server.properties:
                               additionalProperties:
                                 type: string
                               type: object

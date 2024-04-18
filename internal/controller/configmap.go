@@ -41,7 +41,7 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 		Namespace: c.Instance.Namespace,
 		Labels:    c.Labels,
 		ConfigGenerators: []common.ConfigGenerator{
-			//&common.Log4jConfGenerator{},
+			&common.Log4jConfGenerator{},
 			&common.SecurityConfGenerator{},
 			//&KafkaConfGenerator{sslSpec: c.MergedCfg.Config.Ssl},
 		},
@@ -60,15 +60,15 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 			overridden := common.OverrideConfigFileContent(cm.Data[kafkav1alpha1.SecurityFileName], security, common.Properties)
 			cm.Data[kafkav1alpha1.SecurityFileName] = overridden
 		}
-		if server := overrides.Server; server != nil {
-			overridden := common.OverrideConfigFileContent(cm.Data[kafkav1alpha1.ServerFileName], server, common.Properties)
-			cm.Data[kafkav1alpha1.ServerFileName] = overridden
-		}
+		//if server := overrides.Server; server != nil {
+		//	overridden := common.OverrideConfigFileContent(cm.Data[kafkav1alpha1.ServerFileName], server, common.Properties)
+		//	cm.Data[kafkav1alpha1.ServerFileName] = overridden
+		//}
 	}
-	// c.LoggingOverride(cm)
+	c.LoggingOverride(cm)
 }
 
 func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {
-	logging := NewDataNodeLogging(c.Scheme, c.Instance, c.Client, c.GroupName, c.Labels, c.MergedCfg, current)
+	logging := NewKafkaLogging(c.Scheme, c.Instance, c.Client, c.GroupName, c.Labels, c.MergedCfg, current)
 	logging.OverrideExist(current)
 }

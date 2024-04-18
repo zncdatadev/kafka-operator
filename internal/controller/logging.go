@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
 	"github.com/zncdata-labs/kafka-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
@@ -9,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewDataNodeLogging(
+func NewKafkaLogging(
 	scheme *runtime.Scheme,
 	instance *kafkav1alpha1.KafkaCluster,
 	client client.Client,
@@ -51,11 +50,12 @@ func (l *LogDataBuilder) MakeContainerLogData() map[string]string {
 // OverrideConfigMapData override log4j properties and update the configmap
 func (l *LogDataBuilder) OverrideConfigMapData(cmData *map[string]string, container common.ContainerComponent,
 	containerLogSpec *kafkav1alpha1.LoggingConfigSpec) {
-	log4jBuilder := common.CreateLog4jBuilder(containerLogSpec, common.ConsoleLogAppender, common.FileLogAppender)
-	log4jConfigMapKey := CreateComponentLog4jPropertiesName(container)
+	fileLogPath := common.LogMountPath + "/kafka.log"
+	log4jBuilder := common.CreateLog4jBuilder(containerLogSpec, common.ConsoleLogAppender, common.FileLogAppender, fileLogPath)
+	log4jConfigMapKey := CreateComponentLog4jPropertiesName()
 	override := log4jBuilder.MakeContainerLogProperties((*cmData)[log4jConfigMapKey])
 	(*cmData)[log4jConfigMapKey] = override
 }
-func CreateComponentLog4jPropertiesName(component common.ContainerComponent) string {
-	return fmt.Sprintf("%s.log4j.properties", string(component))
+func CreateComponentLog4jPropertiesName() string {
+	return kafkav1alpha1.Log4jFileName
 }
