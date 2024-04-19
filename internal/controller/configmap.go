@@ -65,7 +65,7 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 		//	cm.Data[kafkav1alpha1.ServerFileName] = overridden
 		//}
 	}
-	//c.LoggingOverride(cm)
+	c.LoggingOverride(cm)
 }
 
 func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {

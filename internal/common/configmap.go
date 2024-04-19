@@ -49,7 +49,14 @@ func OverrideConfigFileContent(current string, override map[string]string, confi
 	case Xml:
 		return util.OverrideXmlContent(current, override)
 	case Properties:
-		content, err := util.OverridePropertiesFileContent(current, override)
+		overrideParis := make([]util.NameValuePair, 0)
+		for k, v := range override {
+			overrideParis = append(overrideParis, util.NameValuePair{
+				Name:  k,
+				Value: v,
+			})
+		}
+		content, err := util.OverridePropertiesFileContent(current, overrideParis)
 		if err != nil {
 			return ""
 		}
@@ -82,7 +89,6 @@ type SecurityProtocol string
 const (
 	Plaintext SecurityProtocol = "PLAINTEXT"
 	Ssl       SecurityProtocol = "SSL"
-	Same      SecurityProtocol = "SASL_PLAINTEXT"
 	SaslSsl   SecurityProtocol = "SASL_SSL"
 	SaslPlain SecurityProtocol = "SASL_PLAINTEXT"
 )
