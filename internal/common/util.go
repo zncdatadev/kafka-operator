@@ -137,5 +137,5 @@ func LinuxEnvRef(envName string) string {
 }
 
 func SslEnabled(sslSpec *kafkav1alpha1.SslSpec) bool {
-	return sslSpec != nil && sslSpec.Enabled == string(kafkav1alpha1.SslPolicyRequired)
+	return sslSpec != nil && sslSpec.Enabled
 }

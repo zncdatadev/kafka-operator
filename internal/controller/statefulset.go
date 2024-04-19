@@ -181,7 +181,7 @@ func (s *StatefulSetReconciler) tlsKeystoreAnnotations() map[string]string {
 		common.SecretAnnotationClass:          string(common.Tls),
 		common.SecretAnnotationFormat:         string(common.Pkcs12),
 		common.SecretAnnotationScope:          strings.Join([]string{string(common.ScopePod), string(common.ScopeNode)}, ","),
-		common.SecretAnnotationPKCS12Password: s.MergedCfg.Config.Ssl.KeyStorePassword,
+		common.SecretAnnotationPKCS12Password: s.MergedCfg.Config.Ssl.StorePassword,
 	}
 }
 

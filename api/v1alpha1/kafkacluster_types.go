@@ -190,17 +190,16 @@ type BrokersConfigSpec struct {
 
 type SslSpec struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=required;requested;none
-	// +kubebuilder:default:="none"
-	Enabled string `json:"enabled,omitempty"`
+	// +kubebuilder:default:=false
+	Enabled bool `json:"enabled,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	KeyStorePassword string `json:"keystorePassword,omitempty"`
+	StorePassword string `json:"storePassword,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS;KERBEROS
 	// +kubebuilder:default:="PKCS12"
-	KeyStoreType string `json:"keystoreType,omitempty"`
+	StoreType string `json:"storeType,omitempty"`
 }
 
 type BrokersContainerLoggingSpec struct {

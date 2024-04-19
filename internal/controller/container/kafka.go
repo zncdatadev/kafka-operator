@@ -76,7 +76,19 @@ func (d *KafkaContainerBuilder) ContainerEnv() []corev1.EnvVar {
 			Value: kafkaCfgGenerator.ListenerSecurityProtocolMap(d.sslSpec),
 		},
 		// tls
-
+		{
+			Name:  common.EnvKafkaCertDir,
+			Value: common.TlsKeystoreMountPath,
+		},
+		// bitnami can not support pkcs12 format, only pem or jks
+		//{
+		//	Name:  common.EnvTlsType,
+		//	Value: d.sslSpec.StoreType,
+		//},
+		{
+			Name:  common.EnvCertificatePass,
+			Value: d.sslSpec.StorePassword,
+		},
 		// export in container command args script
 		//{
 		//	Name: EnvAdvertisedListeners,
@@ -113,11 +125,6 @@ func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			Name:      DataVolumeName(),
 			MountPath: common.DataMountPath,
 		},
-		//{
-		//	Name:      ServerConfigVolumeName(),
-		//	MountPath: common.ConfigMountPath,
-		//	SubPath:   kafkav1alpha1.ServerFileName,
-		//},
 		{
 			Name:      Log4jVolumeName(),
 			MountPath: common.Log4jMountPath,
@@ -189,21 +196,6 @@ func (d *KafkaContainerBuilder) CommandArgs() []string {
 	nodePortLoc := common.NodePortMountPath + "/" + common.NodePortFileName
 	advertisedListeners := d.advertisedListeners()
 	args := fmt.Sprintf(`
-kafka_conf_set() {
-    local file="${1:?missing file}"
-    local key="${2:?missing key}"
-    local value="${3:?missing value}"
-
-    # Check if the value was set before
-    if grep -q "^[#\\s]*$key\s*=.*" "$file"; then
-        # Update the existing key
-        replace_in_file "$file" "^[#\\s]*${key}\s*=.*" "${key}=${value}" false
-    else
-        # Add a new key
-        printf '\n%%s=%%s' "$key" "$value" >>"$file"
-    fi
-}
-
 echo "Setting up kafka"
 
 NODE_PORT_LOCATION=%s
@@ -223,21 +215,14 @@ export NODE_ID=${POD_NAME##*-}
 export KAFKA_CFG_NODE_ID=${NODE_ID}
 export KAFKA_CFG_INTER_BROKER_LISTENER_NAME=INTERNAL
 
-KAFKA_CONFIG_LOCATION=%s
-# kafka_conf_set $KAFKA_CONFIG_LOCATION  inter.broker.listener.name INTERNAL
-
 echo "show Envs..."
 echo "Node ID: $NODE_ID"
 echo "Node Port: $NODE_PORT"
 echo "Advertised Listeners: $KAFKA_CFG_ADVERTISED_LISTENERS"
 
-# echo "show Configs..."
-# cat $KAFKA_CONFIG_LOCATION
-
-/opt/bitnami/scripts/kafka/entrypoint.sh /opt/bitnami/scripts/kafka/run.sh`, nodePortLoc, advertisedListeners,
-		common.ConfigMountPath)
+/opt/bitnami/scripts/kafka/entrypoint.sh /opt/bitnami/scripts/kafka/run.sh`, nodePortLoc, advertisedListeners)
 	if common.SslEnabled(d.sslSpec) {
-		args += d.setSsl()
+		args = d.transformPkcs12ToJks() + d.setSsl() + args
 	}
 	return []string{args}
 }
@@ -245,18 +230,44 @@ echo "Advertised Listeners: $KAFKA_CFG_ADVERTISED_LISTENERS"
 // set ssl properties
 func (d *KafkaContainerBuilder) setSsl() string {
 	return fmt.Sprintf(`
-echo "set ssl properties into kafka server.properties"
-SERVER_LOCATION = %s
+echo "set ssl envs..."
 # key store
-kafka_common_conf_set $SERVER_LOCATION ssl.keystore.type %s
-kafka_common_conf_set $SERVER_LOCATION ssl.keystore.location %s
-kafka_common_conf_set $SERVER_LOCATION ssl.keystore.password %s
+export KAFKA_CFG_SSL_KEYSTORE_LOCATION=%s
+export KAFKA_CFG_SSL_KEYSTORE_TYPE=%s
+export KAFKA_CFG_SSL_KEY_PASSWORD=%s
 # trust store
-kafka_common_conf_set $SERVER_LOCATION ssl.truststore.type %s
-kafka_common_conf_set $SERVER_LOCATION ssl.truststore.location %s
-kafka_common_conf_set $SERVER_LOCATION ssl.truststore.password %s
-`, common.ConfigMountPath, d.sslSpec.KeyStoreType, common.TlsPkcs12KeyStorePath, d.sslSpec.KeyStorePassword,
-		d.sslSpec.KeyStoreType, common.TlsPkcs12TruststorePath, d.sslSpec.KeyStorePassword)
+export KAFKA_CFG_SSL_TRUSTSTORE_LOCATION=%s
+export KAFKA_CFG_SSL_TRUSTSTORE_TYPE=%s
+export KAFKA_CFG_SSL_TRUSTSTORE_PASSWORD=%s
+`,
+		common.KafkaTlsJksKeyStorePath, common.SslJks, d.sslSpec.StorePassword,
+		common.KafkaTlsJks12TrustStorePath, common.SslJks, d.sslSpec.StorePassword)
 }
 
-// client advertised
+// transform keystore and truststore file from pcks12 to jks using the same password
+// First determine whether the key file is in jks format, if it is, transform it to jks format,
+// if it is jks format, do nothing
+// if it is other,echo unexpected error
+func (d *KafkaContainerBuilder) transformPkcs12ToJks() string {
+	return fmt.Sprintf(`
+set -ex
+
+echo "transform keystore and truststore file from pcks12 to jks..."
+SECRET_FORMAT=%s
+SSL_STORE_PASSWORD=%s
+CERT_DIR=%s
+if [ "$SECRET_FORMAT" = "JKS" ]; then
+    echo "already in jks format"
+    exit 0
+fi
+if [ "$SECRET_FORMAT" = "PKCS12" ]; then
+    echo "transforming to jks format"
+    keytool -importkeystore -srckeystore "${CERT_DIR}/keystore.p12" -destkeystore "${CERT_DIR}/kafka.keystore.jks" -srcstoretype pkcs12 -deststoretype jks -srcstorepass $SSL_STORE_PASSWORD -deststorepass $SSL_STORE_PASSWORD  -noprompt
+    keytool -importkeystore -srckeystore "${CERT_DIR}/truststore.p12" -destkeystore "${CERT_DIR}/kafka.truststore.jks" -srcstoretype pkcs12 -deststoretype jks -srcstorepass $SSL_STORE_PASSWORD -deststorepass $SSL_STORE_PASSWORD -noprompt
+else
+    echo "unsupported secret format: $SECRET_FORMAT"
+    exit 1
+fi
+`, d.sslSpec.StoreType, d.sslSpec.StorePassword, common.TlsKeystoreMountPath)
+
+}

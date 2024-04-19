@@ -1438,15 +1438,11 @@ spec:
                       ssl:
                         properties:
                           enabled:
-                            default: none
-                            enum:
-                            - required
-                            - requested
-                            - none
+                            default: false
+                            type: boolean
+                          storePassword:
                             type: string
-                          keystorePassword:
-                            type: string
-                          keystoreType:
+                          storeType:
                             default: PKCS12
                             enum:
                             - PKCS12
@@ -3066,15 +3062,11 @@ spec:
                             ssl:
                               properties:
                                 enabled:
-                                  default: none
-                                  enum:
-                                  - required
-                                  - requested
-                                  - none
+                                  default: false
+                                  type: boolean
+                                storePassword:
                                   type: string
-                                keystorePassword:
-                                  type: string
-                                keystoreType:
+                                storeType:
                                   default: PKCS12
                                   enum:
                                   - PKCS12
