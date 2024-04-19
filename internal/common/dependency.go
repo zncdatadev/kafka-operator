@@ -33,9 +33,17 @@ const (
 type SecretFormat string
 
 const (
-	Pem    SecretFormat = "tls-pem"
-	Pkcs12 SecretFormat = "tls-p12"
-	Jks    SecretFormat = "kerberos"
+	Pem      SecretFormat = "tls-pem"
+	Pkcs12   SecretFormat = "tls-p12"
+	Kerberos SecretFormat = "kerberos"
+)
+
+type SslFormat string
+
+const (
+	SslPem    SslFormat = "PEM"
+	SslPkcs12 SslFormat = "PKCS12"
+	SslJks    SslFormat = "JKS"
 )
 
 type SecretScope string

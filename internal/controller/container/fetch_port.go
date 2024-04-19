@@ -38,14 +38,6 @@ func (d *FetchNodePortContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			Name:      NodePortVolumeName(),
 			MountPath: common.NodePortMountPath,
 		},
-		//{
-		//	Name:      ConfigmapVolumeName(),
-		//	MountPath: ConfigMapMountPath,
-		//},
-		//{
-		//	Name:      ServerConfigVolumeName(),
-		//	MountPath: ServerConfigMountPath,
-		//},
 	}
 }
 

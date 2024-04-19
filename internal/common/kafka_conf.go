@@ -123,11 +123,11 @@ func (k *KafkaConfGenerator) DataDir() string {
 func (k *KafkaConfGenerator) listenerSslProperties(sslSpec *v1alpha1.SslSpec) string {
 	if SslEnabled(sslSpec) {
 		return fmt.Sprintf(k.listenerPrefix(interListerName) + ".ssl.keystore.location=" + TlsKeystoreMountPath + "/keystore.jks\n" +
-			k.listenerPrefix(interListerName) + "ssl.keystore.password=" + sslSpec.KeyStorePassword + "\n" +
-			k.listenerPrefix(interListerName) + "ssk.keystore.type=" + sslSpec.KeyStoreType + "\n" +
+			k.listenerPrefix(interListerName) + "ssl.keystore.password=" + sslSpec.StorePassword + "\n" +
+			k.listenerPrefix(interListerName) + "ssk.keystore.type=" + sslSpec.StoreType + "\n" +
 			k.listenerPrefix(interListerName) + "ssl.truststore.location=" + TlsKeystoreMountPath + "/truststore.jks\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.password=" + sslSpec.KeyStorePassword + "\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.type=" + sslSpec.KeyStoreType)
+			k.listenerPrefix(interListerName) + "ssl.truststore.password=" + sslSpec.StorePassword + "\n" +
+			k.listenerPrefix(interListerName) + "ssl.truststore.type=" + sslSpec.StoreType)
 	}
 	return ""
 }
@@ -145,13 +145,15 @@ const (
 
 // mount
 const (
-	TlsKeystoreMountPath    = "/zncdata/" + TlsDir
-	TlsPkcs12KeyStorePath   = TlsKeystoreMountPath + "/keystore.p12"
-	TlsPkcs12TruststorePath = TlsKeystoreMountPath + "/truststore.p12"
-	DataMountPath           = "/bitnami/kafka"
-	LogMountPath            = "/opt/bitnami/kafka/logs"
-	ConfigMountPath         = "/opt/bitnami/kafka/config/server.properties"
-	Log4jMountPath          = "/opt/bitnami/kafka/config/log4j.properties"
+	TlsKeystoreMountPath          = "/bitnami/kafka/config/certs"
+	SecretTlsPkcs12KeyStorePath   = TlsKeystoreMountPath + "/keystore.p12"
+	SecretTlsPkcs12TrustStorePath = TlsKeystoreMountPath + "/truststore.p12"
+	KafkaTlsJksKeyStorePath       = TlsKeystoreMountPath + "/kafka.keystore.jks"
+	KafkaTlsJks12TrustStorePath   = TlsKeystoreMountPath + "/kafka.truststore.jks"
+	DataMountPath                 = "/bitnami/kafka"
+	LogMountPath                  = "/opt/bitnami/kafka/logs"
+	ConfigMountPath               = "/opt/bitnami/kafka/config/server.properties"
+	Log4jMountPath                = "/opt/bitnami/kafka/config/log4j.properties"
 
 	NodePortMountPath = "/zncdata/tmp"
 	NodePortFileName  = "kafka_nodeport"
@@ -174,7 +176,7 @@ const (
 	EnvCertificatePass       = "KAFKA_CERTIFICATE_PASSWORD"
 	EnvTlsTrustStoreLocation = "KAFKA_TLS_TRUSTSTORE_FILE"
 	EnvTlsType               = "KAFKA_TLS_TYPE"
-	EnvTlsEnableFlag         = "KAFKA_TLS_CLIENT_AUTH"
+	EnvKafkaCertDir          = "KAFKA_CERTS_DIR"
 )
 
 const originLog4jProperties = `

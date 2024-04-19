@@ -34,6 +34,6 @@ spec:
               file:
                 level: ERROR
           ssl:
-            enabled: "none"
-            keystoreType: PKCS12
-            keystorePassword: "123456"
+            enabled: true
+            storeType: PKCS12
+            storePassword: "123456"
