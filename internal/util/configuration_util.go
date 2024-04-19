@@ -9,8 +9,9 @@ import (
 )
 
 type NameValuePair struct {
-	Name  string
-	Value string
+	comment string
+	Name    string
+	Value   string
 }
 
 // MakeConfigFileContent returns the content of a configuration file
@@ -58,7 +59,7 @@ func OverrideConfigFileContent(current string, override string) string {
 }
 
 // OverridePropertiesFileContent use bufio resolve properties
-func OverridePropertiesFileContent(current string, override map[string]string) (string, error) {
+func OverridePropertiesFileContent(current string, override []NameValuePair) (string, error) {
 	var properties []NameValuePair
 	//scan current
 	if err := ScanProperties(current, &properties); err != nil {
@@ -71,7 +72,7 @@ func OverridePropertiesFileContent(current string, override map[string]string) (
 	// to string
 	var res string
 	for _, v := range properties {
-		res += fmt.Sprintf("%s=%s\n", v.Name, v.Value)
+		res += fmt.Sprintf("%s%s=%s\n", v.comment, v.Name, v.Value)
 	}
 	return res, nil
 }
@@ -79,18 +80,22 @@ func OverridePropertiesFileContent(current string, override map[string]string) (
 func ScanProperties(current string, properties *[]NameValuePair) error {
 	scanner := bufio.NewScanner(strings.NewReader(current))
 
+	var comment string
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "#") || len(line) == 0 {
+			comment += line + "\n"
 			continue
 		}
 
 		items := strings.Split(line, "=")
 		if len(items) == 2 {
 			*properties = append(*properties, NameValuePair{
-				Name:  items[0],
-				Value: items[1],
+				comment: comment,
+				Name:    items[0],
+				Value:   items[1],
 			})
+			comment = ""
 		} else {
 			return fmt.Errorf("invalid property line: %s", line)
 		}
@@ -127,7 +132,7 @@ func OverrideXmlContent(current string, overrideProperties map[string]string) st
 	return b.String()
 }
 
-func OverrideProperties(override map[string]string, current *[]NameValuePair) {
+func OverrideProperties(override []NameValuePair, current *[]NameValuePair) {
 	if len(override) == 0 {
 		return
 	}
@@ -136,14 +141,14 @@ func OverrideProperties(override map[string]string, current *[]NameValuePair) {
 		currentKeys[v.Name] = i
 	}
 
-	for k, v := range override {
-		if _, ok := currentKeys[k]; ok {
-			(*current)[currentKeys[k]].Value = v // override
+	for _, v := range override {
+		if _, ok := currentKeys[v.Name]; ok {
+			(*current)[currentKeys[v.Name]].Value = v.Value // override
 		} else {
 			// append new
 			*current = append(*current, NameValuePair{
-				Name:  k,
-				Value: v,
+				Name:  v.Name,
+				Value: v.Value,
 			})
 		}
 	}

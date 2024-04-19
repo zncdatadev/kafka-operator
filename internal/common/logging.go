@@ -155,74 +155,74 @@ func (l *Log4jLoggingDataBuilder) MakeContainerLogProperties(origin string) stri
 // 2. make console logger properties
 // 3. make file appender logger properties
 // 4. merge all the properties
-func (l *Log4jLoggingDataBuilder) MakeOverrideLoggerProperties() map[string]string {
+func (l *Log4jLoggingDataBuilder) MakeOverrideLoggerProperties() []util.NameValuePair {
 	loggers := l.makeCustomLoggersProperties()
 	console := l.makeConsoleLoggerProperties()
 	file := l.makeFileLoggerProperties()
-	properties := make(map[string]string)
-	for k, v := range loggers {
-		properties[k] = v
-	}
-	for k, v := range console {
-		properties[k] = v
-	}
-	for k, v := range file {
-		properties[k] = v
-	}
+	properties := make([]util.NameValuePair, 0)
+	properties = append(properties, loggers...)
+	properties = append(properties, console...)
+	properties = append(properties, file...)
 	return properties
 }
 
-func (l *Log4jLoggingDataBuilder) makeCustomLoggersProperties() map[string]string {
+func (l *Log4jLoggingDataBuilder) makeCustomLoggersProperties() []util.NameValuePair {
 	if l.Loggers == nil {
 		return nil
 	}
-	properties := make(map[string]string)
+	properties := make([]util.NameValuePair, 0)
 	for _, logger := range l.Loggers {
-		properties["log4j.logger."+logger.logger] = logger.level
+		properties = append(properties, util.NameValuePair{
+			Name:  "log4j.logger." + logger.logger,
+			Value: logger.level,
+		})
 	}
 	return properties
 }
 
 // make console logger properties
 // change console appender logger level:  "log4j.appender.CONSOLE.Threshold=INFO"
-func (l *Log4jLoggingDataBuilder) makeConsoleLoggerProperties() map[string]string {
+func (l *Log4jLoggingDataBuilder) makeConsoleLoggerProperties() []util.NameValuePair {
 	if l.Console == nil {
 		return nil
 	}
-	properties := make(map[string]string)
+	properties := make([]util.NameValuePair, 0)
 	key := fmt.Sprintf("log4j.appender.%s.Threshold", l.Console.appenderName)
-	properties[key] = l.Console.level
+	properties = append(properties, util.NameValuePair{
+		Name:  key,
+		Value: l.Console.level,
+	})
 	return properties
 }
 
 // make file appender logger properties
 // change file appender logger level: "log4j.appender.FILE.Threshold=INFO"
-func (l *Log4jLoggingDataBuilder) makeFileLoggerProperties() map[string]string {
+func (l *Log4jLoggingDataBuilder) makeFileLoggerProperties() []util.NameValuePair {
 	if l.File == nil {
 		return nil
 	}
 	fileAppender := l.File.appenderName
-	properties := make(map[string]string)
+	properties := make([]util.NameValuePair, 0)
 	// if file appender not exists, create new default one
 	if fileAppender == NoneAppender {
 		fileAppender = DefaultFileAppender
 		properties = l.MakeDefaultFileAppenderProperties(fileAppender)
 	} else {
 		key := fmt.Sprintf("log4j.appender.%s.Threshold", l.File.appenderName)
-		properties[key] = l.File.level
+		properties = append(properties, util.NameValuePair{Name: key, Value: l.File.level})
 	}
 	return properties
 }
 
-func (l *Log4jLoggingDataBuilder) MakeDefaultFileAppenderProperties(fileAppender string) map[string]string {
+func (l *Log4jLoggingDataBuilder) MakeDefaultFileAppenderProperties(fileAppender string) []util.NameValuePair {
 	prefix := fmt.Sprintf("log4j.appender.%s", fileAppender)
-	properties := make(map[string]string)
-	properties[prefix] = "org.apache.log4j.RollingFileAppender"
-	properties[prefix+".Threshold"] = l.File.level
-	properties[prefix+".MaxFileSize"] = "5MB"
-	properties[prefix+".MaxBackupIndex"] = "1"
-	properties[prefix+".layout"] = "org.apache.log4j.PatternLayout"
-	properties[prefix+".layout.ConversionPattern"] = "%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n"
-	properties[prefix+".File"] = l.File.defaultLogLocation
+	properties := make([]util.NameValuePair, 0)
+	properties = append(properties, util.NameValuePair{Name: prefix, Value: "org.apache.log4j.RollingFileAppender"})
+	properties = append(properties, util.NameValuePair{Name: prefix + ".Threshold", Value: l.Console.level})
+	properties = append(properties, util.NameValuePair{Name: prefix + ".MaxFileSize", Value: "5MB"})
+	properties = append(properties, util.NameValuePair{Name: prefix + ".MaxBackupIndex", Value: "1"})
+	properties = append(properties, util.NameValuePair{Name: prefix + ".layout", Value: "org.apache.log4j.PatternLayout"})
+	properties = append(properties, util.NameValuePair{Name: prefix + ".layout.ConversionPattern", Value: "%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n"})
+	properties = append(properties, util.NameValuePair{Name: prefix + ".File", Value: l.File.defaultLogLocation})
 	return properties
 }
