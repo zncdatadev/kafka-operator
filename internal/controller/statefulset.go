@@ -128,17 +128,6 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 				EmptyVolumeLimit: "40Mi",
 			},
 		},
-		//{
-		//	Name:       container.ConfigmapVolumeName(),
-		//	SourceType: common.ConfigMap,
-		//	Params: &common.VolumeSourceParams{
-		//		ConfigMap: common.ConfigMapSpec{
-		//			Name: common.CreateConfigName(s.Instance.GetName(), s.GroupName),
-		//			KeyPath: []corev1.KeyToPath{
-		//				{Key: kafkav1alpha1.ServerFileName, Path: "server.properties"},
-		//			},
-		//		}},
-		//},
 		{
 			Name:       container.Log4jVolumeName(),
 			SourceType: common.ConfigMap,
@@ -181,7 +170,7 @@ func (s *StatefulSetReconciler) tlsKeystoreAnnotations() map[string]string {
 		common.SecretAnnotationClass:          string(common.Tls),
 		common.SecretAnnotationFormat:         string(common.Pkcs12),
 		common.SecretAnnotationScope:          strings.Join([]string{string(common.ScopePod), string(common.ScopeNode)}, ","),
-		common.SecretAnnotationPKCS12Password: s.MergedCfg.Config.Ssl.StorePassword,
+		common.SecretAnnotationPKCS12Password: s.MergedCfg.Config.Ssl.JksPassword,
 	}
 }
 

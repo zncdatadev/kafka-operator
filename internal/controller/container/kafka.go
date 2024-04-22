@@ -87,7 +87,7 @@ func (d *KafkaContainerBuilder) ContainerEnv() []corev1.EnvVar {
 		//},
 		{
 			Name:  common.EnvCertificatePass,
-			Value: d.sslSpec.StorePassword,
+			Value: d.sslSpec.JksPassword,
 		},
 		// export in container command args script
 		//{
@@ -240,8 +240,8 @@ export KAFKA_CFG_SSL_TRUSTSTORE_LOCATION=%s
 export KAFKA_CFG_SSL_TRUSTSTORE_TYPE=%s
 export KAFKA_CFG_SSL_TRUSTSTORE_PASSWORD=%s
 `,
-		common.KafkaTlsJksKeyStorePath, common.SslJks, d.sslSpec.StorePassword,
-		common.KafkaTlsJks12TrustStorePath, common.SslJks, d.sslSpec.StorePassword)
+		common.KafkaTlsJksKeyStorePath, common.SslJks, d.sslSpec.JksPassword,
+		common.KafkaTlsJks12TrustStorePath, common.SslJks, d.sslSpec.JksPassword)
 }
 
 // transform keystore and truststore file from pcks12 to jks using the same password
@@ -261,13 +261,13 @@ if [ "$SECRET_FORMAT" = "JKS" ]; then
     exit 0
 fi
 if [ "$SECRET_FORMAT" = "PKCS12" ]; then
-    echo "transforming to jks format"
+    echo "transforming pkcs12 to jks format"
     keytool -importkeystore -srckeystore "${CERT_DIR}/keystore.p12" -destkeystore "${CERT_DIR}/kafka.keystore.jks" -srcstoretype pkcs12 -deststoretype jks -srcstorepass $SSL_STORE_PASSWORD -deststorepass $SSL_STORE_PASSWORD  -noprompt
     keytool -importkeystore -srckeystore "${CERT_DIR}/truststore.p12" -destkeystore "${CERT_DIR}/kafka.truststore.jks" -srcstoretype pkcs12 -deststoretype jks -srcstorepass $SSL_STORE_PASSWORD -deststorepass $SSL_STORE_PASSWORD -noprompt
 else
     echo "unsupported secret format: $SECRET_FORMAT"
     exit 1
 fi
-`, d.sslSpec.StoreType, d.sslSpec.StorePassword, common.TlsKeystoreMountPath)
+`, "PKCS12", d.sslSpec.JksPassword, common.TlsKeystoreMountPath)
 
 }

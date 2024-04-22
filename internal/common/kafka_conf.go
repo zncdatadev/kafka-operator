@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 	"github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"strings"
 )
 
 // log4j.properties
@@ -81,11 +80,6 @@ func (k *KafkaConfGenerator) InterBrokerListenerName() string {
 	return string(interListerName)
 }
 
-// listener prefix
-func (k *KafkaConfGenerator) listenerPrefix(listenerName ListenerName) string {
-	return fmt.Sprintf("listener.name.%s.", strings.ToLower(string(listenerName)))
-}
-
 // Listeners listeners
 // contains 3 listeners: CLIENT, CLUSTER, EXTERNAL
 // listeners=CLIENT://:9092,ClUSTER://:19092,EXTERNAL://:{nodePort}
@@ -122,12 +116,12 @@ func (k *KafkaConfGenerator) DataDir() string {
 // ssl.truststore.password=${env.KAFKA_SSL_TRUSTSTORE_PASSWORD}
 func (k *KafkaConfGenerator) listenerSslProperties(sslSpec *v1alpha1.SslSpec) string {
 	if SslEnabled(sslSpec) {
-		return fmt.Sprintf(k.listenerPrefix(interListerName) + ".ssl.keystore.location=" + TlsKeystoreMountPath + "/keystore.jks\n" +
-			k.listenerPrefix(interListerName) + "ssl.keystore.password=" + sslSpec.StorePassword + "\n" +
-			k.listenerPrefix(interListerName) + "ssk.keystore.type=" + sslSpec.StoreType + "\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.location=" + TlsKeystoreMountPath + "/truststore.jks\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.password=" + sslSpec.StorePassword + "\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.type=" + sslSpec.StoreType)
+		return "ssl.keystore.location=" + TlsKeystoreMountPath + "/keystore.jks\n" +
+			"ssl.keystore.password=" + sslSpec.JksPassword + "\n" +
+			"ssl.keystore.type=JKS\n" +
+			"ssl.truststore.location=" + TlsKeystoreMountPath + "/truststore.jks\n" +
+			"ssl.truststore.password=" + sslSpec.JksPassword + "\n" +
+			"ssl.truststore.type=JKS"
 	}
 	return ""
 }

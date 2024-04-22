@@ -1440,15 +1440,7 @@ spec:
                           enabled:
                             default: false
                             type: boolean
-                          storePassword:
-                            type: string
-                          storeType:
-                            default: PKCS12
-                            enum:
-                            - PKCS12
-                            - PEM
-                            - JKS
-                            - KERBEROS
+                          jksPassword:
                             type: string
                         type: object
                       storageClass:
@@ -3064,15 +3056,7 @@ spec:
                                 enabled:
                                   default: false
                                   type: boolean
-                                storePassword:
-                                  type: string
-                                storeType:
-                                  default: PKCS12
-                                  enum:
-                                  - PKCS12
-                                  - PEM
-                                  - JKS
-                                  - KERBEROS
+                                jksPassword:
                                   type: string
                               type: object
                             storageClass:

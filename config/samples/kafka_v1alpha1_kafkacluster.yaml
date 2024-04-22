@@ -35,5 +35,4 @@ spec:
                 level: ERROR
           ssl:
             enabled: true
-            storeType: PKCS12
-            storePassword: "123456"
+            jksPassword: "123456789"
