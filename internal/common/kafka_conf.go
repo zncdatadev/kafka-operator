@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 	"github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"strings"
 )
 
 // log4j.properties
@@ -79,11 +78,6 @@ const interListerName = INTERNAL
 // InterBrokerListenerName inter broker listener name
 func (k *KafkaConfGenerator) InterBrokerListenerName() string {
 	return string(interListerName)
-}
-
-// listener prefix
-func (k *KafkaConfGenerator) listenerPrefix(listenerName ListenerName) string {
-	return fmt.Sprintf("listener.name.%s.", strings.ToLower(string(listenerName)))
 }
 
 // Listeners listeners
