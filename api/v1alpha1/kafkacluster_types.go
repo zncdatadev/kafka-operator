@@ -194,12 +194,13 @@ type SslSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	StorePassword string `json:"storePassword,omitempty"`
+	JksPassword string `json:"jksPassword,omitempty"`
 
+	// whatever secret csi key store format is, key store type in kafka is JKS always, so ignore it here
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS;KERBEROS
 	// +kubebuilder:default:="PKCS12"
-	StoreType string `json:"storeType,omitempty"`
+	//StoreType string `json:"storeType,omitempty"`
 }
 
 type BrokersContainerLoggingSpec struct {

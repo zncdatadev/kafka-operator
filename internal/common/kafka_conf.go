@@ -122,12 +122,12 @@ func (k *KafkaConfGenerator) DataDir() string {
 // ssl.truststore.password=${env.KAFKA_SSL_TRUSTSTORE_PASSWORD}
 func (k *KafkaConfGenerator) listenerSslProperties(sslSpec *v1alpha1.SslSpec) string {
 	if SslEnabled(sslSpec) {
-		return fmt.Sprintf(k.listenerPrefix(interListerName) + ".ssl.keystore.location=" + TlsKeystoreMountPath + "/keystore.jks\n" +
-			k.listenerPrefix(interListerName) + "ssl.keystore.password=" + sslSpec.StorePassword + "\n" +
-			k.listenerPrefix(interListerName) + "ssk.keystore.type=" + sslSpec.StoreType + "\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.location=" + TlsKeystoreMountPath + "/truststore.jks\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.password=" + sslSpec.StorePassword + "\n" +
-			k.listenerPrefix(interListerName) + "ssl.truststore.type=" + sslSpec.StoreType)
+		return "ssl.keystore.location=" + TlsKeystoreMountPath + "/keystore.jks\n" +
+			"ssl.keystore.password=" + sslSpec.JksPassword + "\n" +
+			"ssl.keystore.type=JKS\n" +
+			"ssl.truststore.location=" + TlsKeystoreMountPath + "/truststore.jks\n" +
+			"ssl.truststore.password=" + sslSpec.JksPassword + "\n" +
+			"ssl.truststore.type=JKS"
 	}
 	return ""
 }
