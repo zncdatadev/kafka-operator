@@ -39,7 +39,7 @@ func NewPodServiceReconciler(
 	maps.Copy(podSvcLabels, ScopeLabels())
 
 	return &PodServiceReconciler{
-		MultiResourceReconciler: *common.NewMultiConfigurationStyleReconciler(scheme, instance, client, groupName,
+		MultiResourceReconciler: *common.NewMultiResourceReconciler(scheme, instance, client, groupName,
 			podSvcLabels, mergedCfg),
 		replicas:  replicas,
 		groupName: groupName,
