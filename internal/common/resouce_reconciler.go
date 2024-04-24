@@ -453,7 +453,7 @@ type MultiResourceReconciler[T client.Object, G any] struct {
 	BaseResourceReconciler[T, G]
 }
 
-func NewMultiConfigurationStyleReconciler[T client.Object, G any](
+func NewMultiResourceReconciler[T client.Object, G any](
 	scheme *runtime.Scheme,
 	instance T,
 	client client.Client,
