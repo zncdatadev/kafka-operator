@@ -1,0 +1,15 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: kafka-catalog
+  namespace: olm
+spec:
+  sourceType: grpc
+  grpcPodConfig:
+    securityContextConfig: restricted
+  image: quay.io/zncdata/kafka-operator-catalog:latest
+  displayName: kafka catalog
+  publisher: zncdata-labs
+  updateStrategy:
+    registryPoll:
+      interval: 5m
