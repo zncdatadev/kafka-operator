@@ -2,7 +2,7 @@ kind: OperatorGroup
 apiVersion: operators.coreos.com/v1
 metadata:
   name: og-bigdata
-  namespace: bigdata
+  namespace: kubedatastack-operators
 spec:
   targetNamespaces:
-  - test1
+  - kubedatastack
