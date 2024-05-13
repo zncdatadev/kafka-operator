@@ -404,7 +404,7 @@ chainsaw-setup: manifests kustomize ## Run the chainsaw setup
 	@echo "\nSetup chainsaw test environment"
 	make docker-build
 	$(KIND) --name $(KIND_CLUSTER_NAME) load docker-image $(IMG)
-	make deploy KUBECONFIG=$(KIND_KUBECONFIG)
+	KUBECONFIG=$(KIND_KUBECONFIG) make deploy
 
 .PHONY: chainsaw-test
 chainsaw-test: chainsaw ## Run the chainsaw test
@@ -413,4 +413,4 @@ chainsaw-test: chainsaw ## Run the chainsaw test
 
 .PHONY: chainsaw-cleanup
 chainsaw-cleanup: manifests kustomize ## Run the chainsaw cleanup
-	make undeploy KUBECONFIG=$(KIND_KUBECONFIG)
+	KUBECONFIG=$(KIND_KUBECONFIG) make undeploy
