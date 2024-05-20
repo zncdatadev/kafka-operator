@@ -306,7 +306,8 @@ catalog-build: opm ## Build a catalog manifests.
 	@if ! test -f ./catalog.Dockerfile; then \
 		$(OPM) generate dockerfile catalog; \
 	fi
-	$(OPM) alpha render-template basic -o yaml catalog-template.yaml > catalog/catalog.yaml
+	sed -E "s|(image: ).*-bundle:v$(VERSION)|\1$(BUNDLE_IMG)|g" catalog-template.yaml | \
+	$(OPM) alpha render-template basic -o yaml > catalog/catalog.yaml
 
 .PHONY: catalog-validate
 catalog-validate: opm ## Validate a catalog manifests.
