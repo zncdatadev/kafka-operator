@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/util/retry"
 
@@ -25,7 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 )
 
 // KafkaClusterReconciler reconciles a KafkaCluster object

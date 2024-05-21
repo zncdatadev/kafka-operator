@@ -9,7 +9,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: kafka-operator
-repo: github.com/zncdata-labs/kafka-operator
+repo: github.com/zncdatadev/kafka-operator
 resources:
 - api:
     crdVersion: v1
@@ -18,6 +18,6 @@ resources:
   domain: zncdata.dev
   group: kafka
   kind: KafkaCluster
-  path: github.com/zncdata-labs/kafka-operator/api/v1alpha1
+  path: github.com/zncdatadev/kafka-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

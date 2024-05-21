@@ -9,7 +9,7 @@ spec:
     securityContextConfig: restricted
   image: quay.io/zncdata/kafka-operator-catalog:latest
   displayName: kafka catalog
-  publisher: zncdata-labs
+  publisher: zncdatadev
   updateStrategy:
     registryPoll:
       interval: 5m

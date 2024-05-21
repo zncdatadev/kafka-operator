@@ -2,7 +2,8 @@ package common
 
 import (
 	"fmt"
-	"github.com/zncdata-labs/kafka-operator/api/v1alpha1"
+
+	"github.com/zncdatadev/kafka-operator/api/v1alpha1"
 )
 
 // log4j.properties

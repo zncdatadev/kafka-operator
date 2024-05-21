@@ -2,10 +2,11 @@ package controller
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
-	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"github.com/zncdata-labs/kafka-operator/internal/common"
-	svc2 "github.com/zncdata-labs/kafka-operator/internal/controller/svc"
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/common"
+	svc2 "github.com/zncdatadev/kafka-operator/internal/controller/svc"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

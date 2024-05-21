@@ -2,17 +2,18 @@ package controller
 
 import (
 	"context"
-	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"github.com/zncdata-labs/kafka-operator/internal/common"
-	"github.com/zncdata-labs/kafka-operator/internal/controller/container"
-	"github.com/zncdata-labs/kafka-operator/internal/controller/svc"
-	"github.com/zncdata-labs/kafka-operator/internal/util"
+	"strings"
+
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/common"
+	"github.com/zncdatadev/kafka-operator/internal/controller/container"
+	"github.com/zncdatadev/kafka-operator/internal/controller/svc"
+	"github.com/zncdatadev/kafka-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 var _ common.StatefulSetResourceType = &StatefulSetReconciler{}

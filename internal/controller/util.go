@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"github.com/zncdata-labs/kafka-operator/internal/common"
-	"github.com/zncdata-labs/kafka-operator/internal/util"
+	"github.com/zncdatadev/kafka-operator/internal/common"
+	"github.com/zncdatadev/kafka-operator/internal/util"
 )
 
 func createStatefulSetName(instanceName string, groupName string) string {
