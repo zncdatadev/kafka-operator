@@ -3,17 +3,18 @@ package svc
 import (
 	"context"
 	"fmt"
-	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"github.com/zncdata-labs/kafka-operator/internal/common"
+	"maps"
+	"time"
+
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"maps"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 var podServiceLog = ctrl.Log.WithName("pod-service")

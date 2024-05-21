@@ -2,10 +2,11 @@ package common
 
 import (
 	"fmt"
-	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"github.com/zncdata-labs/kafka-operator/internal/util"
-	corev1 "k8s.io/api/core/v1"
 	"strings"
+
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/util"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {

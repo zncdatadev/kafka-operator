@@ -2,12 +2,13 @@ package container
 
 import (
 	"fmt"
-	kafkav1alpha1 "github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"github.com/zncdata-labs/kafka-operator/internal/common"
-	"github.com/zncdata-labs/kafka-operator/internal/util"
+	"strconv"
+
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/common"
+	"github.com/zncdatadev/kafka-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"strconv"
 )
 
 type KafkaContainerBuilder struct {

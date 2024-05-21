@@ -2,8 +2,9 @@ package container
 
 import (
 	"fmt"
-	"github.com/zncdata-labs/kafka-operator/api/v1alpha1"
-	"github.com/zncdata-labs/kafka-operator/internal/common"
+
+	"github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
 )
 
