@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
@@ -139,4 +140,24 @@ func LinuxEnvRef(envName string) string {
 
 func SslEnabled(sslSpec *kafkav1alpha1.SslSpec) bool {
 	return sslSpec != nil && sslSpec.Enabled
+}
+func AffinityDefault(role Role, crName string) *corev1.Affinity {
+	return &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				{
+					Weight: 70,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								LabelCrName:    crName,
+								LabelComponent: string(role),
+							},
+						},
+						TopologyKey: corev1.LabelHostname,
+					},
+				},
+			},
+		},
+	}
 }
