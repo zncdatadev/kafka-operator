@@ -30,7 +30,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # zncdata.dev/kafka-operator-bundle:$VERSION and zncdata.dev/kafka-operator-catalog:$VERSION.
 
-REGISTRY ?= quay.io/zncdata
+REGISTRY ?= quay.io/zncdatadev
 PROJECT_NAME = kafka-operator
 
 IMAGE_TAG_BASE ?= $(REGISTRY)/$(PROJECT_NAME)

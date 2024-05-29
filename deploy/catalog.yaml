@@ -7,7 +7,7 @@ spec:
   sourceType: grpc
   grpcPodConfig:
     securityContextConfig: restricted
-  image: quay.io/zncdata/kafka-operator-catalog:latest
+  image: quay.io/zncdatadev/kafka-operator-catalog:latest
   displayName: kafka catalog
   publisher: zncdatadev
   updateStrategy:
