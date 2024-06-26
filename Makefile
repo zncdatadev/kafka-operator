@@ -54,7 +54,7 @@ endif
 
 # Set the Operator SDK version to use. By default, what is installed on the system is used.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.33.0
+OPERATOR_SDK_VERSION ?= v1.34.2
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(REGISTRY)/$(PROJECT_NAME):v$(VERSION)
@@ -200,8 +200,8 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.3.0
-CONTROLLER_TOOLS_VERSION ?= v0.13.0
+KUSTOMIZE_VERSION ?= v5.4.2
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
@@ -221,8 +221,8 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	# after v0.0.0-20240320141353-395cfc7486e6, setup-envtest is require go >= 1.22.0
-	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240320141353-395cfc7486e6
+	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
 .PHONY: operator-sdk
 OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 operator-sdk: ## Download operator-sdk locally if necessary.
@@ -271,6 +271,7 @@ bundle-run: ## Run the bundle image.
 bundle-cleanup: ## Clean up the bundle image.
 	$(OPERATOR_SDK) cleanup $(PROJECT_NAME)
 
+OPM_VERSION ?= v1.43.0
 .PHONY: opm
 OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
@@ -280,7 +281,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.39.0/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$${OPM_VERSION}/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -338,10 +339,14 @@ catalog-docker-buildx: ## Build and push a catalog image for cross-platform supp
 ##@ E2E
 
 # kind
-KIND_VERSION ?= v0.22.0
+KIND_VERSION ?= v0.23.0
 
-KIND_KUBECONFIG ?= ./kind-kubeconfig
-KIND_CLUSTER_NAME ?= ${PROJECT_NAME}
+KINDTEST_K8S_VERSION ?= 1.26.14
+
+KIND_IMAGE ?= kindest/node:v${KINDTEST_K8S_VERSION}
+
+KIND_KUBECONFIG ?= ./kind-kubeconfig-$(KINDTEST_K8S_VERSION)
+KIND_CLUSTER_NAME ?= ${PROJECT_NAME}-$(KINDTEST_K8S_VERSION)
 
 .PHONY: kind
 KIND = $(LOCALBIN)/kind
@@ -358,13 +363,14 @@ KIND = $(shell which kind)
 endif
 endif
 
-OLM_VERSION ?= v0.27.0
+OLM_VERSION ?= v0.28.0
+KIND_CONFIG ?= test/e2e/kind-config.yaml
 
 # Create a kind cluster, install ingress-nginx, and wait for it to be available.
 .PHONY: kind-create
 kind-create: kind ## Create a kind cluster.
-	$(KIND) create cluster --config test/e2e/kind-$(ENVTEST_K8S_VERSION).yaml --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBECONFIG) --wait 120s
-	make kind-setup KUBECONFIG=$(KIND_KUBECONFIG)
+	$(KIND) create cluster --config $(KIND_CONFIG) --image $(KIND_IMAGE) --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBECONFIG) --wait 120s
+	KUBECONFIG=$(KIND_KUBECONFIG) make kind-setup
 
 .PHONY: kind-setup
 kind-setup: kind ## setup kind cluster base environment
@@ -412,7 +418,6 @@ chainsaw-setup: manifests kustomize ## Run the chainsaw setup
 .PHONY: chainsaw-test
 chainsaw-test: chainsaw ## Run the chainsaw test
 	$(CHAINSAW) test --cluster cluster-1=$(KIND_KUBECONFIG) --test-dir ./test/e2e
-
 
 .PHONY: chainsaw-cleanup
 chainsaw-cleanup: manifests kustomize ## Run the chainsaw cleanup
