@@ -113,7 +113,7 @@ func (h *KafkaClusterInstance) GetRoleConfigSpec(_ common.Role) (any, error) {
 }
 
 func (h *KafkaClusterInstance) GetClusterConfig() any {
-	return h.Instance.Spec.ClusterConfigSpec
+	return h.Instance.Spec.ClusterConfig
 }
 
 func (h *KafkaClusterInstance) GetNamespace() string {

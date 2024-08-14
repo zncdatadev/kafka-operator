@@ -3,18 +3,22 @@ package container
 import (
 	"fmt"
 
-	"github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/common"
+	"github.com/zncdatadev/kafka-operator/internal/security"
 	corev1 "k8s.io/api/core/v1"
 )
 
 type FetchNodePortContainerBuilder struct {
 	common.ContainerBuilder
+	tlsSecurity *security.KafkaTlsSecurity
 }
 
-func NewFetchNodePortContainerBuilder() *FetchNodePortContainerBuilder {
+func NewFetchNodePortContainerBuilder(tlsSecurity *security.KafkaTlsSecurity) *FetchNodePortContainerBuilder {
+
 	return &FetchNodePortContainerBuilder{
 		ContainerBuilder: *common.NewContainerBuilder("bitnami/kubectl", corev1.PullIfNotPresent),
+		tlsSecurity:      tlsSecurity,
 	}
 }
 
@@ -36,8 +40,8 @@ func (d *FetchNodePortContainerBuilder) ContainerEnv() []corev1.EnvVar {
 func (d *FetchNodePortContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
-			Name:      NodePortVolumeName(),
-			MountPath: common.NodePortMountPath,
+			Name:      kafkav1alpha1.KubedoopTmpDirName,
+			MountPath: kafkav1alpha1.KubedoopTmpDir,
 		},
 	}
 }
@@ -60,6 +64,7 @@ else
     exit 1
 fi
 `
-	return []string{"sh", "-c", fmt.Sprintf(cmdTpl, common.EnvPodName, common.NodePortMountPath, common.NodePortFileName,
-		v1alpha1.KafkaPortName)}
+	matchedClientPortName := d.tlsSecurity.ClientPortName()
+	return []string{"sh", "-c", fmt.Sprintf(cmdTpl, common.EnvPodName, kafkav1alpha1.KubedoopTmpDir, common.NodePortFileName,
+		matchedClientPortName)}
 }

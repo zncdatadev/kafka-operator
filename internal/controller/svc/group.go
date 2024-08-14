@@ -39,10 +39,10 @@ func NewGroupServiceHeadless(
 func makeGroupSvcPorts() []corev1.ServicePort {
 	return []corev1.ServicePort{
 		{
-			Name:       kafkav1alpha1.KafkaPortName,
+			Name:       kafkav1alpha1.ClientPortName,
 			Port:       GroupServiceClientPort,
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString(kafkav1alpha1.KafkaPortName),
+			TargetPort: intstr.FromString(kafkav1alpha1.ClientPortName),
 		},
 		{
 			Name:       kafkav1alpha1.InternalPortName,

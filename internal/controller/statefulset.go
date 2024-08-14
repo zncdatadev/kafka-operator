@@ -2,12 +2,12 @@ package controller
 
 import (
 	"context"
-	"strings"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/common"
 	"github.com/zncdatadev/kafka-operator/internal/controller/container"
 	"github.com/zncdatadev/kafka-operator/internal/controller/svc"
+	"github.com/zncdatadev/kafka-operator/internal/security"
 	"github.com/zncdatadev/kafka-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +20,7 @@ var _ common.StatefulSetResourceType = &StatefulSetReconciler{}
 
 type StatefulSetReconciler struct {
 	common.WorkloadStyleUncheckedReconciler[*kafkav1alpha1.KafkaCluster, *kafkav1alpha1.BrokersRoleGroupSpec]
+	*security.KafkaTlsSecurity
 }
 
 func NewStatefulSet(
@@ -30,6 +31,7 @@ func NewStatefulSet(
 	labels map[string]string,
 	mergedCfg *kafkav1alpha1.BrokersRoleGroupSpec,
 	replicate int32,
+	tlsSecurity *security.KafkaTlsSecurity,
 ) *StatefulSetReconciler {
 	return &StatefulSetReconciler{
 		WorkloadStyleUncheckedReconciler: *common.NewWorkloadStyleUncheckedReconciler(
@@ -41,6 +43,7 @@ func NewStatefulSet(
 			mergedCfg,
 			replicate,
 		),
+		KafkaTlsSecurity: tlsSecurity,
 	}
 }
 
@@ -57,11 +60,16 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	builder.SetVolumes(s.volumes())
 	builder.SetPvcTemplates(s.pvcTemplates())
 	builder.SetInitContainers(s.makeInitContainers())
-	return builder.Build(), nil
+
+	sts := builder.Build()
+	// for security decor
+	s.KafkaTlsSecurity.AddVolumeAndVolumeMounts(sts)
+
+	return sts, nil
 }
 
 func (s *StatefulSetReconciler) SetAffinity(resource client.Object) {
-	dep := resource.(*appv1.Deployment)
+	dep := resource.(*appv1.StatefulSet)
 	if affinity := s.MergedCfg.Config.Affinity; affinity != nil {
 		dep.Spec.Template.Spec.Affinity = affinity
 	} else {
@@ -104,12 +112,10 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 func (s *StatefulSetReconciler) makeKafkaContainer() []corev1.Container {
 	imageSpec := s.Instance.Spec.Image
 	resourceSpec := s.MergedCfg.Config.Resources
-	sslSpec := s.MergedCfg.Config.Ssl
-	zNode := s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
-	imageName := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	zNode := s.Instance.Spec.ClusterConfig.ZookeeperConfigMapName
+	imageName := util.ImageRepository(imageSpec)
 	groupSvcName := svc.CreateGroupServiceName(s.Instance.GetName(), s.GroupName)
-	svcHost := common.CreateDomainHost(groupSvcName, s.Instance.GetNamespace(), s.Instance.Spec.ClusterConfigSpec.ClusterDomain)
-	builder := container.NewKafkaContainerBuilder(imageName, imageSpec.PullPolicy, zNode, resourceSpec, sslSpec, svcHost)
+	builder := container.NewKafkaContainerBuilder(imageName, util.ImagePullPolicy(imageSpec), zNode, resourceSpec, s.KafkaTlsSecurity, s.Instance.Namespace, groupSvcName)
 	kafkaContainer := builder.Build(builder)
 	return []corev1.Container{
 		kafkaContainer,
@@ -118,7 +124,7 @@ func (s *StatefulSetReconciler) makeKafkaContainer() []corev1.Container {
 
 // make init containers
 func (s *StatefulSetReconciler) makeInitContainers() []corev1.Container {
-	builder := container.NewFetchNodePortContainerBuilder()
+	builder := container.NewFetchNodePortContainerBuilder(s.KafkaTlsSecurity)
 	return []corev1.Container{
 		builder.Build(builder),
 	}
@@ -128,19 +134,19 @@ func (s *StatefulSetReconciler) makeInitContainers() []corev1.Container {
 func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 	volumes := []common.VolumeSpec{
 		{
-			Name:       container.NodePortVolumeName(),
+			Name:       kafkav1alpha1.KubedoopTmpDirName,
 			SourceType: common.EmptyDir,
 			Params:     &common.VolumeSourceParams{},
 		},
 		{
-			Name:       container.Log4jLoggingVolumeName(),
+			Name:       kafkav1alpha1.KubedoopLogDirName,
 			SourceType: common.EmptyDir,
 			Params: &common.VolumeSourceParams{
 				EmptyVolumeLimit: "40Mi",
 			},
 		},
 		{
-			Name:       container.Log4jVolumeName(),
+			Name:       kafkav1alpha1.KubedoopLogConfigDirName,
 			SourceType: common.ConfigMap,
 			Params: &common.VolumeSourceParams{
 				ConfigMap: common.ConfigMapSpec{
@@ -151,44 +157,22 @@ func (s *StatefulSetReconciler) volumes() []common.VolumeSpec {
 				}},
 		},
 		{
-			Name:       container.ServerConfigVolumeName(),
-			SourceType: common.EmptyDir,
-		},
-	}
-	if common.SslEnabled(s.MergedCfg.Config.Ssl) {
-		volumes = append(volumes, common.VolumeSpec{
-			Name:       common.TlsKeystoreInternalVolumeName(),
-			SourceType: common.EphemeralSecret,
+			Name:       kafkav1alpha1.KubedoopConfigDirName,
+			SourceType: common.ConfigMap,
 			Params: &common.VolumeSourceParams{
-				EphemeralSecret: &common.EphemeralSecretSpec{
-					Annotations: s.tlsKeystoreAnnotations(), // !!!importance-1
-					PvcSpec: common.PvcSpec{
-						StorageClass: func() *string { s := common.SecretStorageClass; return &s }(), // !!!importance-2
-						AccessModes:  []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						StorageSize:  "1",
-					},
+				ConfigMap: common.ConfigMapSpec{
+					Name: common.CreateConfigName(s.Instance.GetName(), s.GroupName),
 				},
 			},
-		})
+		},
 	}
 	return volumes
-}
-
-// tls keystore annotations
-// todo: cr define
-func (s *StatefulSetReconciler) tlsKeystoreAnnotations() map[string]string {
-	return map[string]string{
-		common.SecretAnnotationClass:          string(common.Tls),
-		common.SecretAnnotationFormat:         string(common.Pkcs12),
-		common.SecretAnnotationScope:          strings.Join([]string{string(common.ScopePod), string(common.ScopeNode)}, ","),
-		common.SecretAnnotationPKCS12Password: s.MergedCfg.Config.Ssl.JksPassword,
-	}
 }
 
 func (s *StatefulSetReconciler) pvcTemplates() []common.VolumeClaimTemplateSpec {
 	return []common.VolumeClaimTemplateSpec{
 		{
-			Name: container.DataVolumeName(),
+			Name: kafkav1alpha1.KubedoopKafkaDataDirName,
 			PvcSpec: common.PvcSpec{
 
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

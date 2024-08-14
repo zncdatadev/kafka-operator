@@ -41,7 +41,7 @@ func NewDiscovery(
 
 // Build implements the ResourceBuilder interface
 func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
-	clusterDomain := d.Instance.Spec.ClusterConfigSpec.ClusterDomain
+	clusterDomain := d.Instance.Spec.ClusterConfig.ClusterDomain
 	clusterSvcName := svc.CreateClusterServiceName(d.Instance.GetName())
 	dnsDomain := common.CreateDnsDomain(clusterSvcName, d.Instance.Namespace, clusterDomain, svc.ClusterServiceClientPort)
 	return &corev1.ConfigMap{

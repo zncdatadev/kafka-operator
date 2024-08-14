@@ -1,9 +1,10 @@
 package v1alpha1
 
-//type LoggingSpec struct {
-//	// +kubebuilder:validation:Optional
-//	Containers *ContainerLoggingSpec `json:"containers,omitempty"`
-//}
+//	type LoggingSpec struct {
+//		// +kubebuilder:validation:Optional
+//		Containers *ContainerLoggingSpec `json:"containers,omitempty"`
+//	}
+const RootLogger string = "ROOT"
 
 type LoggingConfigSpec struct {
 	// +kubebuilder:validation:Optional
