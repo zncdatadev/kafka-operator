@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafkacluster-sample-default-broker
+  namespace: kubedatastack
+status:
+  replicas: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafkacluster-sample
+  namespace: kubedatastack
