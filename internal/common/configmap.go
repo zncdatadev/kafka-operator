@@ -8,8 +8,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var configMapLogger = ctrl.Log.WithName("configmap")
 
 type ConfigMapType interface {
 	ResourceBuilder
@@ -71,28 +74,30 @@ func OverrideConfigFileContent(current string, override map[string]string, confi
 // we can use this interface to generate config content
 // and use GenerateAll function to generate configMap data
 type ConfigGenerator interface {
-	Generate() string
+	Generate() (string, error)
 	FileName() string
 }
 
 func GenerateAll(confGenerator []ConfigGenerator) map[string]string {
 	data := make(map[string]string)
 	for _, generator := range confGenerator {
-		if generator.Generate() != "" {
-			data[generator.FileName()] = generator.Generate()
+		if config, err := generator.Generate(); err == nil {
+			data[generator.FileName()] = config
+		} else {
+			configMapLogger.Error(err, "generate config error")
 		}
 	}
 	return data
 }
 
-type SecurityProtocol string
+// type SecurityProtocol string
 
-const (
-	Plaintext SecurityProtocol = "PLAINTEXT"
-	Ssl       SecurityProtocol = "SSL"
-	SaslSsl   SecurityProtocol = "SASL_SSL"
-	SaslPlain SecurityProtocol = "SASL_PLAINTEXT"
-)
+// const (
+// 	Plaintext SecurityProtocol = "PLAINTEXT"
+// 	Ssl       SecurityProtocol = "SSL"
+// 	SaslSsl   SecurityProtocol = "SASL_SSL"
+// 	SaslPlain SecurityProtocol = "SASL_PLAINTEXT"
+// )
 
 // GeneralConfigMapReconciler general config map reconciler generator
 // it can be used to generate config map reconciler for simple config map

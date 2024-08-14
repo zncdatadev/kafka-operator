@@ -8,6 +8,7 @@ import (
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/common"
 	"github.com/zncdatadev/kafka-operator/internal/controller/svc"
+	"github.com/zncdatadev/kafka-operator/internal/security"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -112,12 +113,15 @@ func (m *RoleGroup) RegisterResource() {
 	lables := m.MergeLabels(cfg)
 	mergedCfg := cfg.(*kafkav1alpha1.BrokersRoleGroupSpec)
 	pdbSpec := mergedCfg.Config.PodDisruptionBudget
+
+	tlsSecurity := security.NewKafkaTlsSecurity(m.Instance.Spec.ClusterConfig.Tls)
+
 	//logDataBuilder := &LogDataBuilder{cfg: mergedCfg}
 
-	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas)
-	groupSvc := svc.NewGroupServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	podSvc := svc.NewPodServiceReconciler(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas)
+	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, tlsSecurity)
+	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, tlsSecurity)
+	groupSvc := svc.NewGroupServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, tlsSecurity)
+	podSvc := svc.NewPodServiceReconciler(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, tlsSecurity)
 	m.Reconcilers = []common.ResourceReconciler{cm, statefulSet, groupSvc, podSvc}
 	if pdbSpec != nil {
 		pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbCfg(pdbSpec))

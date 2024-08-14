@@ -7,6 +7,7 @@ import (
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/common"
 	svc2 "github.com/zncdatadev/kafka-operator/internal/controller/svc"
+	"github.com/zncdatadev/kafka-operator/internal/security"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,6 +21,7 @@ type ClusterReconciler struct {
 
 	roleReconcilers     []common.RoleReconciler
 	resourceReconcilers []common.ResourceReconciler
+	*security.KafkaTlsSecurity
 }
 
 func NewClusterReconciler(client client.Client, scheme *runtime.Scheme, cr *kafkav1alpha1.KafkaCluster) *ClusterReconciler {
@@ -28,6 +30,7 @@ func NewClusterReconciler(client client.Client, scheme *runtime.Scheme, cr *kafk
 		scheme: scheme,
 		cr:     cr,
 	}
+	c.KafkaTlsSecurity = security.NewKafkaTlsSecurity(c.cr.Spec.ClusterConfig.Tls)
 	c.RegisterRole()
 	c.RegisterResource()
 	return c
@@ -45,10 +48,11 @@ func (c *ClusterReconciler) RegisterResource() {
 	labels := common.RoleLabels{
 		InstanceName: c.cr.Name,
 	}
+
 	sa := NewServiceAccount(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
 	role := NewRole(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
 	roleBinding := NewRoleBinding(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
-	svc := svc2.NewClusterService(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
+	svc := svc2.NewClusterService(c.scheme, c.cr, c.client, labels.GetLabels(), nil, c.KafkaTlsSecurity)
 	c.resourceReconcilers = []common.ResourceReconciler{sa, role, roleBinding, svc}
 }
 
@@ -100,7 +104,7 @@ func (c *ClusterReconciler) preReconcile() {
 }
 
 func (c *ClusterReconciler) ReconcileDiscovery(ctx context.Context) (ctrl.Result, error) {
-	discovery := NewDiscovery(c.scheme, c.cr, c.client)
+	discovery := NewDiscovery(c.scheme, c.cr, c.client, c.KafkaTlsSecurity)
 	return discovery.ReconcileResource(ctx, common.NewSingleResourceBuilder(discovery))
 }
 
@@ -113,7 +117,7 @@ func (h *KafkaClusterInstance) GetRoleConfigSpec(_ common.Role) (any, error) {
 }
 
 func (h *KafkaClusterInstance) GetClusterConfig() any {
-	return h.Instance.Spec.ClusterConfigSpec
+	return h.Instance.Spec.ClusterConfig
 }
 
 func (h *KafkaClusterInstance) GetNamespace() string {

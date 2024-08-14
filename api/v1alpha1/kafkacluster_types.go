@@ -29,21 +29,37 @@ const (
 )
 
 const (
-	KafkaPortName    = "kafka"
-	InternalPortName = "internal"
+	ClientPortName       = "kafka"
+	SecureClientPortName = "kafka-tls"
+	InternalPortName     = "internal"
+	MetricsPortName      = "metrics"
 
-	KafkaClientPort           = 9092
+	ClientPort                = 9092
+	SecurityClientPort        = 9093
 	InternalPort              = 19092
+	SecurityInternalPort      = 19093
+	MetricsPort               = 9606
 	PodSvcClientNodePortMin   = 30092
 	PodSvcInternalNodePortMin = 31092
 )
 
-type SslPolicy string
-
 const (
-	SslPolicyNone     SslPolicy = "none"
-	SslPolicyOptional SslPolicy = "requested"
-	SslPolicyRequired SslPolicy = "required"
+	ImageRepository = "docker.stackable.tech/stackable/kafka"
+	ImageTag        = "3.7.1-stackable24.7.0"
+	ImagePullPolicy = corev1.PullAlways
+
+	KubedoopKafkaDataDirName = "data" // kafka log dirs
+	KubedoopLogConfigDirName = "log-config"
+	KubedoopConfigDirName    = "config"
+	KubedoopTmpDirName       = "tmp"
+	KubedoopLogDirName       = "log"
+
+	KubedoopRoot         = "/stackable"
+	KubedoopTmpDir       = KubedoopRoot + "/tmp"
+	KubedoopDataDir      = KubedoopRoot + "/data"
+	KubedoopConfigDir    = KubedoopRoot + "/config"
+	KubedoopLogConfigDir = KubedoopRoot + "/log_config"
+	KubedoopLogDir       = KubedoopRoot + "/log"
 )
 
 //+kubebuilder:object:root=true
@@ -73,7 +89,7 @@ type KafkaClusterSpec struct {
 	Image *ImageSpec `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Required
-	ClusterConfigSpec *ClusterConfigSpec `json:"clusterConfig,omitempty"`
+	ClusterConfig *ClusterConfigSpec `json:"clusterConfig,omitempty"`
 
 	// +kubebuilder:validation:Required
 	Brokers *BrokersSpec `json:"brokers,omitempty"`
@@ -81,10 +97,10 @@ type KafkaClusterSpec struct {
 
 type ImageSpec struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=bitnami/kafka
+	// +kubebuilder:default="docker.stackable.tech/stackable/kafka"
 	Repository string `json:"repository,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="3.7.0-debian-12-r2"
+	// +kubebuilder:default="3.7.1-stackable24.7.0"
 	Tag string `json:"tag,omitempty"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=IfNotPresent
@@ -99,12 +115,43 @@ type ClusterConfigSpec struct {
 	// +kubebuilder:default:="cluster.local"
 	ClusterDomain string `json:"clusterDomain,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:=1
-	DfsReplication int32 `json:"dfsReplication,omitempty"`
+	Tls *TlsSpec `json:"tls,omitempty"`
 
 	// +kubebuilder:validation:required
-	ZookeeperDiscoveryZNode string `json:"zookeeperDiscoveryZNode,omitempty"`
+	ZookeeperConfigMapName string `json:"zookeeperConfigMapName,omitempty"`
+}
+
+type TlsSpec struct {
+	// The SecretClass to use for internal broker communication. Use mutual verification between brokers (mandatory).
+	// This setting controls: - Which cert the brokers should use to authenticate themselves against other brokers -
+	// Which ca.crt to use when validating the other brokers Defaults to tls
+	//
+	// +kubebuilder:validation:Optional
+	ServerSecretClass string `json:"serverSecretClass,omitempty"`
+	//The SecretClass to use for client connections. This setting controls: - If TLS encryption is used at all -
+	//Which cert the servers should use to authenticate themselves against the client Defaults to tls.
+	//
+	// +kubebuilder:validation:Optional
+	InternalSecretClass string `json:"internalSecretClass,omitempty"`
+
+	// todo: use secret resource
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="chageit"
+	SSLStorePassword string `json:"sslStorePassword,omitempty"`
+}
+
+type KafkaAuthenticationSpec struct {
+	/*
+	 *	 ## TLS provider
+	 *
+	 *	 Only affects client connections. This setting controls:
+	 *	 - If clients need to authenticate themselves against the broker via TLS
+	 *	 - Which ca.crt to use when validating the provided client certs
+	 *
+	 *	 This will override the server TLS settings (if set) in `spec.clusterConfig.tls.serverSecretClass`.
+	 */
+	// +kubebuilder:validation:Optional
+	AuthenticationClass string `json:"authenticationClass,omitempty"`
 }
 
 type BrokersSpec struct {
@@ -183,26 +230,7 @@ type BrokersConfigSpec struct {
 
 	// +kubebuilder:validation:Optional
 	Logging *BrokersContainerLoggingSpec `json:"logging,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	Ssl *SslSpec `json:"ssl,omitempty"`
 }
-
-type SslSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:=false
-	Enabled bool `json:"enabled,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	JksPassword string `json:"jksPassword,omitempty"`
-
-	// whatever secret csi key store format is, key store type in kafka is JKS always, so ignore it here
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=PKCS12;PEM;JKS;KERBEROS
-	// +kubebuilder:default:="PKCS12"
-	//StoreType string `json:"storeType,omitempty"`
-}
-
 type BrokersContainerLoggingSpec struct {
 	// +kubebuilder:validation:Optional
 	Broker *LoggingConfigSpec `json:"broker,omitempty"`
