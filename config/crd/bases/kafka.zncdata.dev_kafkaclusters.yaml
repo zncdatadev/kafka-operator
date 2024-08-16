@@ -1075,6 +1075,9 @@ spec:
                                   type: object
                                 type: object
                             type: object
+                          enableVectorAgent:
+                            default: false
+                            type: boolean
                         type: object
                       nodeSelector:
                         additionalProperties:
@@ -2447,6 +2450,9 @@ spec:
                                         type: object
                                       type: object
                                   type: object
+                                enableVectorAgent:
+                                  default: false
+                                  type: boolean
                               type: object
                             nodeSelector:
                               additionalProperties:
@@ -2810,6 +2816,8 @@ spec:
                         description: 'todo: use secret resource'
                         type: string
                     type: object
+                  vectorAggregatorConfigMapName:
+                    type: string
                   zookeeperConfigMapName:
                     type: string
                 type: object

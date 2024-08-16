@@ -155,6 +155,7 @@ catalog
 ginkgo.report
 cover.out
 cmd/__debug*
+**/coverage
 
 # ai code local
 .codiumai.toml

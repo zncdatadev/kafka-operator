@@ -47,7 +47,7 @@ func NewStatefulSet(
 	}
 }
 
-func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) {
+func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error) {
 	builder := common.NewStatefulSetBuilder(
 		createStatefulSetName(s.Instance.GetName(), s.GroupName),
 		s.Instance.Namespace,
@@ -62,8 +62,13 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	builder.SetInitContainers(s.makeInitContainers())
 
 	sts := builder.Build()
-	// for security decor
+	// for security
 	s.KafkaTlsSecurity.AddVolumeAndVolumeMounts(sts)
+
+	// for vector
+	if IsVectorEnable(s.MergedCfg.Config.Logging) {
+		ExtendWorkloadByVector(nil, sts, common.CreateConfigName(s.Instance.GetName(), s.GroupName))
+	}
 
 	return sts, nil
 }

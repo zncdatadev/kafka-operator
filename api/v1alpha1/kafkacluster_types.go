@@ -115,7 +115,11 @@ type ClusterConfigSpec struct {
 	// +kubebuilder:default:="cluster.local"
 	ClusterDomain string `json:"clusterDomain,omitempty"`
 
+	// +kubebuilder:validation:Optional
 	Tls *TlsSpec `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	VectorAggregatorConfigMapName string `json:"vectorAggregatorConfigMapName,omitempty"`
 
 	// +kubebuilder:validation:required
 	ZookeeperConfigMapName string `json:"zookeeperConfigMapName,omitempty"`
@@ -232,6 +236,9 @@ type BrokersConfigSpec struct {
 	Logging *BrokersContainerLoggingSpec `json:"logging,omitempty"`
 }
 type BrokersContainerLoggingSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	EnableVectorAgent bool `json:"enableVectorAgent,omitempty"`
 	// +kubebuilder:validation:Optional
 	Broker *LoggingConfigSpec `json:"broker,omitempty"`
 }

@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/zncdatadev/kafka-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
@@ -24,16 +25,37 @@ type ConfigMapBuilder struct {
 	Namespace        string
 	Labels           map[string]string
 	ConfigGenerators []ConfigGenerator
+
+	data map[string]string
 }
 
 func (c *ConfigMapBuilder) Build() *corev1.ConfigMap {
+	if c.data == nil {
+		c.data = make(map[string]string)
+	}
+	maps.Copy(c.data, GenerateAll(c.ConfigGenerators))
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.Name,
 			Namespace: c.Namespace,
 			Labels:    c.Labels,
 		},
-		Data: GenerateAll(c.ConfigGenerators),
+		Data: c.data,
+	}
+}
+
+// Data
+func (c *ConfigMapBuilder) Data() map[string]string {
+	return c.data
+}
+
+// add Data
+func (c *ConfigMapBuilder) AddData(data map[string]string) {
+	if c.data == nil {
+		c.data = make(map[string]string)
+	}
+	for k, v := range data {
+		c.data[k] = v
 	}
 }
 
