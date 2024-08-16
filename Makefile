@@ -385,22 +385,14 @@ kind-delete: kind ## Delete a kind cluster.
 
 # chainsaw
 
-CHAINSAW_VERSION ?= v0.1.8
+CHAINSAW_VERSION ?= v0.2.6
+CHAINSAW = $(LOCALBIN)/chainsaw
 
 .PHONY: chainsaw
-CHAINSAW = $(LOCALBIN)/chainsaw
-chainsaw: ## Download chainsaw locally if necessary.
-ifeq (,$(shell which $(CHAINSAW)))
-ifeq (,$(shell which chainsaw 2>/dev/null))
-	@{ \
-	set -e ;\
-	go install github.com/kyverno/chainsaw@$(CHAINSAW_VERSION) ;\
-	}
-CHAINSAW = $(GOBIN)/chainsaw
-else
-CHAINSAW = $(shell which chainsaw)
-endif
-endif
+chainsaw: $(CHAINSAW) ## Download chainsaw locally if necessary.
+$(CHAINSAW): $(LOCALBIN)
+	test -s $(LOCALBIN)/chainsaw && $(LOCALBIN)/chainsaw version | grep -q $(CHAINSAW_VERSION) || \
+	GOBIN=$(LOCALBIN) go install github.com/kyverno/chainsaw@$(CHAINSAW_VERSION)
 
 # chainsaw setup logical
 # - Build the operator docker image
@@ -414,11 +406,10 @@ chainsaw-setup: manifests kustomize ## Run the chainsaw setup
 	make docker-build
 	$(KIND) --name $(KIND_CLUSTER_NAME) load docker-image $(IMG)
 	KUBECONFIG=$(KIND_KUBECONFIG) make deploy
-
+	
 .PHONY: chainsaw-test
 chainsaw-test: chainsaw ## Run the chainsaw test
-	$(CHAINSAW) test --cluster cluster-1=$(KIND_KUBECONFIG) --test-dir ./test/e2e
-
+	KUBECONFIG=$(KIND_KUBECONFIG) $(CHAINSAW) test --cluster cluster-1=$(KIND_KUBECONFIG) --test-dir ./test/e2e/
 
 .PHONY: chainsaw-cleanup
 chainsaw-cleanup: manifests kustomize ## Run the chainsaw cleanup

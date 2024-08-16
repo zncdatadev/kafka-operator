@@ -8,7 +8,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: kafka-operator
   name: kafkacluster-sample
-  namespace: kubedatastack
 spec:
   clusterConfig:
     tls:
