@@ -8,6 +8,7 @@ import (
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/common"
+	"github.com/zncdatadev/kafka-operator/internal/security"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -24,6 +25,7 @@ type PodServiceReconciler struct {
 	common.MultiResourceReconciler[*kafkav1alpha1.KafkaCluster, *kafkav1alpha1.BrokersRoleGroupSpec]
 	replicas  int32
 	groupName string
+	*security.KafkaTlsSecurity
 }
 
 func NewPodServiceReconciler(
@@ -33,7 +35,8 @@ func NewPodServiceReconciler(
 	groupName string,
 	labels map[string]string,
 	mergedCfg *kafkav1alpha1.BrokersRoleGroupSpec,
-	replicas int32) *PodServiceReconciler {
+	replicas int32,
+	tlsSecurity *security.KafkaTlsSecurity) *PodServiceReconciler {
 
 	podSvcLabels := make(map[string]string)
 	maps.Copy(podSvcLabels, labels)
@@ -42,8 +45,9 @@ func NewPodServiceReconciler(
 	return &PodServiceReconciler{
 		MultiResourceReconciler: *common.NewMultiResourceReconciler(scheme, instance, client, groupName,
 			podSvcLabels, mergedCfg),
-		replicas:  replicas,
-		groupName: groupName,
+		replicas:         replicas,
+		groupName:        groupName,
+		KafkaTlsSecurity: tlsSecurity,
 	}
 }
 
@@ -127,16 +131,14 @@ func (p *PodServiceReconciler) InternalNodePort(idx int32) int32 {
 func (p *PodServiceReconciler) ServicePorts() []corev1.ServicePort {
 	return []corev1.ServicePort{
 		{
-			Name:       kafkav1alpha1.KafkaPortName,
-			Port:       PodServiceClientPort,
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString(kafkav1alpha1.KafkaPortName),
+			Name:       p.KafkaTlsSecurity.ClientPortName(),
+			Port:       int32(p.KafkaTlsSecurity.ClientPort()),
+			TargetPort: intstr.FromString(kafkav1alpha1.ClientPortName),
 		},
 		{
-			Name:       kafkav1alpha1.InternalPortName,
-			Port:       PodServiceInternalPort,
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString(kafkav1alpha1.InternalPortName),
+			Name:       kafkav1alpha1.MetricsPortName,
+			Port:       kafkav1alpha1.MetricsPort,
+			TargetPort: intstr.FromString(kafkav1alpha1.MetricsPortName),
 		},
 	}
 }

@@ -1331,14 +1331,6 @@ spec:
                                 type: string
                             type: object
                         type: object
-                      ssl:
-                        properties:
-                          enabled:
-                            default: false
-                            type: boolean
-                          jksPassword:
-                            type: string
-                        type: object
                       storageClass:
                         type: string
                       storageSize:
@@ -2711,14 +2703,6 @@ spec:
                                       type: string
                                   type: object
                               type: object
-                            ssl:
-                              properties:
-                                enabled:
-                                  default: false
-                                  type: boolean
-                                jksPassword:
-                                  type: string
-                              type: object
                             storageClass:
                               type: string
                             storageSize:
@@ -2790,10 +2774,6 @@ spec:
                   clusterDomain:
                     default: cluster.local
                     type: string
-                  dfsReplication:
-                    default: 1
-                    format: int32
-                    type: integer
                   service:
                     properties:
                       annotations:
@@ -2812,7 +2792,25 @@ spec:
                           for a service
                         type: string
                     type: object
-                  zookeeperDiscoveryZNode:
+                  tls:
+                    properties:
+                      internalSecretClass:
+                        description: |-
+                          The SecretClass to use for client connections. This setting controls: - If TLS encryption is used at all -
+                          Which cert the servers should use to authenticate themselves against the client Defaults to tls.
+                        type: string
+                      serverSecretClass:
+                        description: |-
+                          The SecretClass to use for internal broker communication. Use mutual verification between brokers (mandatory).
+                          This setting controls: - Which cert the brokers should use to authenticate themselves against other brokers -
+                          Which ca.crt to use when validating the other brokers Defaults to tls
+                        type: string
+                      sslStorePassword:
+                        default: chageit
+                        description: 'todo: use secret resource'
+                        type: string
+                    type: object
+                  zookeeperConfigMapName:
                     type: string
                 type: object
               image:
@@ -2823,10 +2821,10 @@ spec:
                       a container image
                     type: string
                   repository:
-                    default: bitnami/kafka
+                    default: quay.io/zncdatadev/kafka
                     type: string
                   tag:
-                    default: 3.7.0-debian-12-r2
+                    default: 3.7.1-kubedoop0.0.0-dev
                     type: string
                 type: object
             type: object

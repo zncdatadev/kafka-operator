@@ -2,8 +2,9 @@ package common
 
 import (
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/util"
@@ -138,9 +139,9 @@ func LinuxEnvRef(envName string) string {
 	return fmt.Sprintf("$%s", envName)
 }
 
-func SslEnabled(sslSpec *kafkav1alpha1.SslSpec) bool {
-	return sslSpec != nil && sslSpec.Enabled
-}
+//	func SslEnabled(sslSpec *kafkav1alpha1.SslSpec) bool {
+//		return sslSpec != nil && sslSpec.Enabled
+//	}
 func AffinityDefault(role Role, crName string) *corev1.Affinity {
 	return &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{

@@ -134,6 +134,24 @@ func ConvertToResourceRequirements(resources *kafkav1alpha1.ResourcesSpec) *core
 	}
 }
 
-func ImageRepository(name, tag string) string {
+func ImageRepository(imagespec *kafkav1alpha1.ImageSpec) string {
+	name := kafkav1alpha1.ImageRepository
+	tag := kafkav1alpha1.ImageTag
+	if imagespec != nil {
+		name = imagespec.Repository
+		tag = imagespec.Tag
+	}
 	return fmt.Sprintf("%s:%s", name, tag)
+}
+
+func ImagePullPolicy(imagespec *kafkav1alpha1.ImageSpec) corev1.PullPolicy {
+	pullPolicy := kafkav1alpha1.ImagePullPolicy
+	if imagespec != nil {
+		pullPolicy = imagespec.PullPolicy
+	}
+	return pullPolicy
+}
+
+func QuantityToMB(quantity resource.Quantity) float64 {
+	return (float64(quantity.Value() / (1024 * 1024)))
 }
