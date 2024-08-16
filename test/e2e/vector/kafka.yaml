@@ -8,14 +8,17 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: kafka-operator
   name: kafkacluster-sample
-  namespace: kubedatastack
 spec:
+  image:
+    repository: quay.io/zncdatadev/kafka
+    tag: 3.7.1-kubedoop0.0.0-dev
   clusterConfig:
     tls:
       sslStorePassword: "123456"
       internalSecretClass: kafka-internal-tls
       serverSecretClass: tls
     zookeeperConfigMapName: kafka-znode
+    vectorAggregatorConfigMapName: vector-aggregator-discovery
   brokers:
     roleGroups:
       default:
@@ -28,11 +31,5 @@ spec:
             memory:
               limit: "3Gi"
           logging:
-            broker:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: WARN
-              file:
-                level: ERROR
+            enableVectorAgent: true
+ 

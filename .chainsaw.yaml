@@ -3,9 +3,10 @@ kind: Configuration
 metadata:
   name: custom-config
 spec:
+  namespace: kubedoop-system
   timeouts:
     apply: 120s
-    assert: 240s
+    assert: 140s
     cleanup: 120s
     delete: 240s
     error: 120s

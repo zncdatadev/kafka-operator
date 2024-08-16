@@ -43,7 +43,7 @@ func NewConfigMap(
 		KafkaTlsSecurity: tlsSecurity,
 	}
 }
-func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
+func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) {
 	builder := common.ConfigMapBuilder{
 		Name:      common.CreateConfigName(c.Instance.GetName(), c.GroupName),
 		Namespace: c.Instance.Namespace,
@@ -54,6 +54,22 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 			&config.KafkaServerConfGenerator{KafkaTlsSecurity: c.KafkaTlsSecurity},
 			//&KafkaConfGenerator{sslSpec: c.MergedCfg.Config.Ssl},
 		},
+	}
+
+	if IsVectorEnable(c.MergedCfg.Config.Logging) {
+		data := make(map[string]string)
+		ExtendConfigMapByVector(
+			ctx,
+			VectorConfigParams{
+				Client:        c.Client,
+				ClusterConfig: c.Instance.Spec.ClusterConfig,
+				Namespace:     c.Instance.Namespace,
+				InstanceName:  c.Instance.Name,
+				Role:          string(common.Broker),
+				GroupName:     c.GroupName,
+			},
+			data)
+		builder.AddData(data)
 	}
 	return builder.Build(), nil
 }
