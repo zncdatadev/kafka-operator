@@ -44,8 +44,8 @@ const (
 )
 
 const (
-	ImageRepository = "docker.stackable.tech/stackable/kafka"
-	ImageTag        = "3.7.1-stackable24.7.0"
+	ImageRepository = "quay.io/zncdatadev/kafka"
+	ImageTag        = "3.7.1-kubedoop0.0.0-dev"
 	ImagePullPolicy = corev1.PullAlways
 
 	KubedoopKafkaDataDirName = "data" // kafka log dirs
@@ -54,7 +54,7 @@ const (
 	KubedoopTmpDirName       = "tmp"
 	KubedoopLogDirName       = "log"
 
-	KubedoopRoot         = "/stackable"
+	KubedoopRoot         = "/kubedoop"
 	KubedoopTmpDir       = KubedoopRoot + "/tmp"
 	KubedoopDataDir      = KubedoopRoot + "/data"
 	KubedoopConfigDir    = KubedoopRoot + "/config"
@@ -97,10 +97,10 @@ type KafkaClusterSpec struct {
 
 type ImageSpec struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="docker.stackable.tech/stackable/kafka"
+	// +kubebuilder:default="quay.io/zncdatadev/kafka"
 	Repository string `json:"repository,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="3.7.1-stackable24.7.0"
+	// +kubebuilder:default="3.7.1-kubedoop0.0.0-dev"
 	Tag string `json:"tag,omitempty"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=IfNotPresent

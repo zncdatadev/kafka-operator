@@ -78,7 +78,7 @@ func (d *KafkaContainerBuilder) ContainerEnv() []corev1.EnvVar {
 		},
 		{
 			Name: common.EnvJvmArgs,
-			Value: fmt.Sprintf("-Djava.security.properties=%s/security.properties -javaagent:%s/jmx/jmx_prometheus_javaagent.jar=%d:%s/jmx/broker.yaml",
+			Value: fmt.Sprintf("-Djava.security.properties=%s/security.properties -javaagent:%s/jmx/jmx_prometheus_javaagent.jar=%d:%s/jmx/config.yaml",
 				kafkav1alpha1.KubedoopConfigDir, kafkav1alpha1.KubedoopRoot, kafkav1alpha1.MetricsPort, kafkav1alpha1.KubedoopRoot),
 		},
 	}

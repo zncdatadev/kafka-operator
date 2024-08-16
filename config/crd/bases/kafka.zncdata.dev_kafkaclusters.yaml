@@ -2821,10 +2821,10 @@ spec:
                       a container image
                     type: string
                   repository:
-                    default: docker.stackable.tech/stackable/kafka
+                    default: quay.io/zncdatadev/kafka
                     type: string
                   tag:
-                    default: 3.7.1-stackable24.7.0
+                    default: 3.7.1-kubedoop0.0.0-dev
                     type: string
                 type: object
             type: object
