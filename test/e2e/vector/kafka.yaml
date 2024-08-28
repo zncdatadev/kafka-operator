@@ -26,10 +26,10 @@ spec:
         config:
           resources:
             cpu:
-              min: 1
-              max: 2
+              min: 300m
+              max: 4
             memory:
-              limit: "3Gi"
+              limit: "4Gi"
           logging:
             enableVectorAgent: true
  
