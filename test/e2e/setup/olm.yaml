@@ -16,8 +16,8 @@ spec:
   sourceType: grpc
   grpcPodConfig:
     securityContextConfig: restricted
-  image: quay.io/zncdatadev/kubedata-catalog:latest
-  displayName: kubedata-catalog
+  image: quay.io/zncdatadev/kubedoop-catalog:latest
+  displayName: kubedoop-catalog
   publisher: zncdatadev
   updateStrategy:
     registryPoll:
