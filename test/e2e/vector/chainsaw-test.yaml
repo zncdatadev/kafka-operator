@@ -38,4 +38,4 @@ spec:
         file: kafka-assert.yaml
     cleanup:
     - sleep:
-        duration: 10s
+        duration: 50s

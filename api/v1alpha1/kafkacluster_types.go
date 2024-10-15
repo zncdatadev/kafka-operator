@@ -95,18 +95,6 @@ type KafkaClusterSpec struct {
 	Brokers *BrokersSpec `json:"brokers,omitempty"`
 }
 
-type ImageSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="quay.io/zncdatadev/kafka"
-	Repository string `json:"repository,omitempty"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="3.7.1-kubedoop0.0.0-dev"
-	Tag string `json:"tag,omitempty"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:=IfNotPresent
-	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
-}
-
 type ClusterConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	Service *ServiceSpec `json:"service,omitempty"`
