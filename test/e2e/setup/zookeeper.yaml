@@ -1,38 +1,30 @@
 apiVersion: zookeeper.zncdata.dev/v1alpha1
 kind: ZookeeperCluster
 metadata:
-  labels:
-    app.kubernetes.io/name: zookeepercluster
-    app.kubernetes.io/instance: zookeepercluster-sample
-    app.kubernetes.io/part-of: zookeeper-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: zookeeper-operator
   name: zookeepercluster-sample
 spec:
-  image:
-    repository: docker.io/bitnami/zookeeper
-    tag: 3.9.1-debian-12-r15
+  clusterOperation:
+    stopped: false
   clusterConfig:
     listenerClass: external-unstable
   server:
-    config:
-      resources:
-        cpu:
-          min: "100m"
-          max: "200m"
-        memory:
-          limit: "1Gi"
     roleGroups:
       default:
         replicas: 1
         config:
+          resources:
+            cpu:
+              min: "400m"
+              max: "800m"
+            memory:
+              limit: "2Gi"
           logging:
             zookeeperCluster:
               loggers:
                 test:
                   level: DEBUG
               console:
-                level: WARN
+                level: INFO
               file:
                 level: INFO
 ---
