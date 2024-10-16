@@ -66,8 +66,14 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 	s.KafkaTlsSecurity.AddVolumeAndVolumeMounts(sts)
 
 	// for vector
+	imageSpec := s.Instance.Spec.Image
+	if imageSpec == nil {
+		imageSpec = kafkav1alpha1.DefaultImageSpec()
+	}
+	image := kafkav1alpha1.TransformImage(imageSpec)
+
 	if IsVectorEnable(s.MergedCfg.Config.Logging) {
-		ExtendWorkloadByVector(nil, sts, common.CreateConfigName(s.Instance.GetName(), s.GroupName))
+		ExtendWorkloadByVector(image, nil, sts, common.CreateConfigName(s.Instance.GetName(), s.GroupName))
 	}
 
 	return sts, nil

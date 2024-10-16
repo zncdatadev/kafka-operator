@@ -138,8 +138,8 @@ func ImageRepository(imagespec *kafkav1alpha1.ImageSpec) string {
 	name := kafkav1alpha1.ImageRepository
 	tag := kafkav1alpha1.ImageTag
 	if imagespec != nil {
-		name = imagespec.Repository
-		tag = imagespec.Tag
+		name = imagespec.Repo + "/" + kafkav1alpha1.DefaultProductName
+		tag = fmt.Sprintf("%s-kubedoop%s", imagespec.ProductVersion, imagespec.KubedoopVersion)
 	}
 	return fmt.Sprintf("%s:%s", name, tag)
 }
@@ -147,7 +147,7 @@ func ImageRepository(imagespec *kafkav1alpha1.ImageSpec) string {
 func ImagePullPolicy(imagespec *kafkav1alpha1.ImageSpec) corev1.PullPolicy {
 	pullPolicy := kafkav1alpha1.ImagePullPolicy
 	if imagespec != nil {
-		pullPolicy = imagespec.PullPolicy
+		pullPolicy = *imagespec.PullPolicy
 	}
 	return pullPolicy
 }

@@ -10,7 +10,7 @@ VERSION ?= 0.0.0-dev
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
 # - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=candidate,fast,stable)
 # - use environment variables to overwrite this value (e.g export CHANNELS="candidate,fast,stable")
-CHANNELS ?= "stable"
+CHANNELS ?= stable
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
 endif
@@ -20,21 +20,20 @@ endif
 # To re-generate a bundle for any other default channel without changing the default setup, you can:
 # - use the DEFAULT_CHANNEL as arg of the bundle target (e.g make bundle DEFAULT_CHANNEL=stable)
 # - use environment variables to overwrite this value (e.g export DEFAULT_CHANNEL="stable")
-DEFAULT_CHANNEL ?= "stable"
+DEFAULT_CHANNEL ?= stable
 ifneq ($(origin DEFAULT_CHANNEL), undefined)
 BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+
+REGISTRY ?= quay.io/zncdatadev
+PROJECT_NAME = kafka-operator
 
 # IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # zncdata.dev/kafka-operator-bundle:$VERSION and zncdata.dev/kafka-operator-catalog:$VERSION.
-
-REGISTRY ?= quay.io/zncdatadev
-PROJECT_NAME = kafka-operator
-
 IMAGE_TAG_BASE ?= $(REGISTRY)/$(PROJECT_NAME)
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
@@ -59,7 +58,7 @@ OPERATOR_SDK_VERSION ?= v1.34.2
 # Image URL to use all building/pushing image targets
 IMG ?= $(REGISTRY)/$(PROJECT_NAME):$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.26.14
+ENVTEST_K8S_VERSION = 1.26.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -103,7 +102,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:generateEmbeddedObjectMeta=true webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -171,6 +170,7 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 	# ref: https://stackoverflow.com/a/70083579
 	$(KUSTOMIZE) build config/crd | kubectl apply --server-side=true -f -
 
+
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
@@ -181,6 +181,7 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	# add --server-side=true to fix "is invalid: metadata.annotations: Too long: must have at most 262144 bytes"
 	# ref: https://stackoverflow.com/a/70083579
 	$(KUSTOMIZE) build config/default | kubectl apply --server-side=true -f -
+
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
@@ -200,8 +201,8 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.4.2
-CONTROLLER_TOOLS_VERSION ?= v0.15.0
+KUSTOMIZE_VERSION ?= v5.4.3
+CONTROLLER_TOOLS_VERSION ?= v0.16.1
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
@@ -247,21 +248,27 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework --optional-values=k8s-version=1.26
 
+.PHONY: scorecard-test
+scorecard-test: bundle ## Run the scorecard tests
+	$(OPERATOR_SDK) scorecard bundle
+
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
-
 .PHONY: bundle-buildx
 bundle-buildx: ## Build the bundle image.
+	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' bundle.Dockerfile > bundle.Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
 	$(CONTAINER_TOOL) buildx use project-v3-builder
-	$(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag $(BUNDLE_IMG) -f bundle.Dockerfile .
+	$(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${BUNDLE_IMG} -f bundle.Dockerfile.cross .
 	$(CONTAINER_TOOL) buildx rm project-v3-builder
+	rm bundle.Dockerfile.cross
 
 .PHONY: bundle-run
 bundle-run: ## Run the bundle image.
@@ -272,6 +279,7 @@ bundle-cleanup: ## Clean up the bundle image.
 	$(OPERATOR_SDK) cleanup $(PROJECT_NAME)
 
 OPM_VERSION ?= v1.43.0
+
 .PHONY: opm
 OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
@@ -281,7 +289,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$${OPM_VERSION}/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -289,10 +297,7 @@ OPM = $(shell which opm)
 endif
 endif
 
-
-# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
-# This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
-# https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
+# The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
 CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:latest
 
 .PHONY: catalog
@@ -304,29 +309,21 @@ catalog: opm ## Build a catalog manifests.
 	sed -E "s|(image: ).*-bundle:v$(VERSION)|\1$(BUNDLE_IMG)|g" catalog-template.yaml | \
 	$(OPM) alpha render-template basic -o yaml > catalog/catalog.yaml
 
-.PHONY: catalog-validate
-catalog-validate: opm ## Validate a catalog manifests.
-	$(OPM) validate catalog
-
-#.PHONY: catalog-render
-#catalog-render: opm ## render a bundle to catalog.
-#	$(OPM) render $(BUNDLE_IMGS) --output=yaml >> catalog/catalog.yaml
-
 .PHONY: catalog-build
 catalog-build: ## Build a catalog image.
 	$(CONTAINER_TOOL) build -t ${CATALOG_IMG} -f catalog.Dockerfile .
 
 # Push the catalog image.
-.PHONY: catalog-docker-push
-catalog-docker-push: ## Push a catalog image.
+.PHONY: catalog-push
+catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 .PHONY: catalog-buildx
 catalog-buildx: ## Build and push a catalog image for cross-platform support
 	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
 	$(CONTAINER_TOOL) buildx use project-v3-builder
-	$(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) -f catalog.Dockerfile --tag ${CATALOG_IMG} .
-	$(CONTAINER_TOOL) buildx rm project-v3-builder
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) -f catalog.Dockerfile --tag ${CATALOG_IMG} .
+	- $(CONTAINER_TOOL) buildx rm project-v3-builder
 
 ##@ E2E
 
@@ -339,7 +336,6 @@ KIND_IMAGE ?= kindest/node:v${KINDTEST_K8S_VERSION}
 
 KIND_KUBECONFIG ?= ./kind-kubeconfig-$(KINDTEST_K8S_VERSION)
 KIND_CLUSTER_NAME ?= ${PROJECT_NAME}-$(KINDTEST_K8S_VERSION)
-KIND_CONFIG ?= test/e2e/kind-config.yaml
 
 .PHONY: kind
 KIND = $(LOCALBIN)/kind
@@ -357,11 +353,12 @@ endif
 endif
 
 OLM_VERSION ?= v0.28.0
+KIND_CONFIG ?= test/e2e/kind-config.yaml
 
 # Create a kind cluster, install ingress-nginx, and wait for it to be available.
 .PHONY: kind-create
 kind-create: kind ## Create a kind cluster.
-	$(KIND) create cluster --config $(KIND_CONFIG)  --image $(KIND_IMAGE) --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBECONFIG) --wait 120s
+	$(KIND) create cluster --config $(KIND_CONFIG) --image $(KIND_IMAGE) --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBECONFIG) --wait 120s
 	KUBECONFIG=$(KIND_KUBECONFIG) make kind-setup
 
 .PHONY: kind-setup
@@ -377,14 +374,30 @@ kind-delete: kind ## Delete a kind cluster.
 
 # chainsaw
 
-CHAINSAW_VERSION ?= v0.2.6
+CHAINSAW_RELEASE_URL ?= https://github.com/kyverno/chainsaw/releases/download/v0.2.8/chainsaw_linux_amd64.tar.gz
+CHAINSAW_VERSION ?= v0.2.8
 CHAINSAW = $(LOCALBIN)/chainsaw
 
 .PHONY: chainsaw
 chainsaw: $(CHAINSAW) ## Download chainsaw locally if necessary.
 $(CHAINSAW): $(LOCALBIN)
-	test -s $(LOCALBIN)/chainsaw && $(LOCALBIN)/chainsaw version | grep -q $(CHAINSAW_VERSION) || \
-	GOBIN=$(LOCALBIN) go install github.com/kyverno/chainsaw@$(CHAINSAW_VERSION)
+	@{ \
+	set -xe ;\
+	if test -x $(LOCALBIN)/chainsaw && ! $(LOCALBIN)/chainsaw version | grep $(CHAINSAW_VERSION:v%=%) > /dev/null; then \
+		echo "$(LOCALBIN)/chainsaw version is not expected $(CHAINSAW_VERSION). Removing it before installing."; \
+		rm -rf $(LOCALBIN)/chainsaw; \
+	fi; \
+	if test ! -s $(LOCALBIN)/chainsaw; then \
+		mkdir -p $(dir $(CHAINSAW)) ;\
+		TMP=$(shell mktemp -d) ;\
+		OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+		curl -sSL https://github.com/kyverno/chainsaw/releases/download/$(CHAINSAW_VERSION)/chainsaw_$${OS}_$${ARCH}.tar.gz | tar -xz -C $$TMP ;\
+		mv $$TMP/chainsaw $(CHAINSAW) ;\
+		rm -rf $$TMP ;\
+		chmod +x $(CHAINSAW) ;\
+		touch $(CHAINSAW) ;\
+	fi; \
+	}
 
 # chainsaw setup logical
 # - Build the operator docker image
@@ -398,11 +411,10 @@ chainsaw-setup: manifests kustomize ## Run the chainsaw setup
 	make docker-build
 	$(KIND) --name $(KIND_CLUSTER_NAME) load docker-image $(IMG)
 	KUBECONFIG=$(KIND_KUBECONFIG) make deploy
-	
+
 .PHONY: chainsaw-test
 chainsaw-test: chainsaw ## Run the chainsaw test
 	KUBECONFIG=$(KIND_KUBECONFIG) $(CHAINSAW) test --cluster cluster-1=$(KIND_KUBECONFIG) --test-dir ./test/e2e/
-
 
 .PHONY: chainsaw-cleanup
 chainsaw-cleanup: manifests kustomize ## Run the chainsaw cleanup

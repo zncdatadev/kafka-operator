@@ -9,9 +9,6 @@ metadata:
     app.kubernetes.io/created-by: kafka-operator
   name: kafkacluster-sample
 spec:
-  image:
-    repository: quay.io/zncdatadev/kafka
-    tag: 3.7.1-kubedoop0.0.0-dev
   clusterConfig:
     tls:
       sslStorePassword: "123456"

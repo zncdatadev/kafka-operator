@@ -6,6 +6,8 @@ import (
 	"emperror.dev/errors"
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/productlogging"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +39,7 @@ func generateVectorYAML(ctx context.Context, params VectorConfigParams) (string,
 	if aggregatorConfigMapName == "" {
 		return "", errors.New("vectorAggregatorConfigMapName is not set")
 	}
-	return builder.MakeVectorYaml(ctx, params.Client, params.Namespace, params.InstanceName, params.Role,
+	return productlogging.MakeVectorYaml(ctx, params.Client, params.Namespace, params.InstanceName, params.Role,
 		params.GroupName, aggregatorConfigMapName)
 }
 
@@ -54,11 +56,13 @@ func ExtendConfigMapByVector(ctx context.Context, params VectorConfigParams, dat
 }
 
 func ExtendWorkloadByVector(
+	image *util.Image,
 	logProvider []string,
 	dep *appsv1.StatefulSet,
 	vectorConfigMapName string) {
 	decorator := builder.VectorDecorator{
 		WorkloadObject:           dep,
+		Image: image,
 		LogVolumeName:            kafkav1alpha1.KubedoopLogDirName,
 		VectorConfigVolumeName:   kafkav1alpha1.KubedoopConfigDirName,
 		VectorConfigMapName:      vectorConfigMapName,
