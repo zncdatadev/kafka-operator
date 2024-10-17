@@ -108,4 +108,4 @@ entries:
   - name: kafka-operator.v0.0.0-dev
 ---
 schema: olm.bundle
-image: quay.io/zncdata/kafka-operator-bundle:0.0.0-dev
+image: quay.io/zncdatadev/kafka-operator-bundle:0.0.0-dev
