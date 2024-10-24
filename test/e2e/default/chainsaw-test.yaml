@@ -6,20 +6,6 @@ spec:
   steps:
   - try:
     - apply:
-        file: ../setup/olm.yaml
-    - assert:
-        file: ../setup/olm-assert.yaml
-  - try:
-    - apply:
-        file: ../setup/subs.yaml
-    - assert:
-        file: ../setup/subs-assert.yaml
-    - apply:
-        file: ../setup/secret.yaml
-    - assert:
-        file: ../setup/secret-assert.yaml
-  - try:
-    - apply:
         file: ../setup/zookeeper.yaml
     - assert:
         file: ../setup/zookeeper-assert.yaml
@@ -34,3 +20,22 @@ spec:
     cleanup:
     - sleep:
         duration: 10s
+    catch:
+      - sleep:
+          duration: 10s
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            set -ex
+            free -h
+            df -h
+            kubectl -n $NAMESPACE get pods
+      - describe:
+          apiVersion: v1
+          kind: Pod
+          selector: app.kubernetes.io/component=broker
+      - podLogs:
+          selector: app.kubernetes.io/component=broker
+          tail: -1

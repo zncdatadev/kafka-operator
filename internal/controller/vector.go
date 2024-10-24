@@ -62,7 +62,7 @@ func ExtendWorkloadByVector(
 	vectorConfigMapName string) {
 	decorator := builder.VectorDecorator{
 		WorkloadObject:           dep,
-		Image: image,
+		Image:                    image,
 		LogVolumeName:            kafkav1alpha1.KubedoopLogDirName,
 		VectorConfigVolumeName:   kafkav1alpha1.KubedoopConfigDirName,
 		VectorConfigMapName:      vectorConfigMapName,
