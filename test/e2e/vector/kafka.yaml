@@ -12,7 +12,7 @@ spec:
   clusterConfig:
     tls:
       sslStorePassword: "123456"
-      internalSecretClass: kafka-internal-tls
+      internalSecretClass: tls
       serverSecretClass: tls
     zookeeperConfigMapName: kafka-znode
     vectorAggregatorConfigMapName: vector-aggregator-discovery
@@ -24,9 +24,8 @@ spec:
           resources:
             cpu:
               min: 300m
-              max: 4
+              max: 600m
             memory:
-              limit: "4Gi"
+              limit: "1Gi"
           logging:
             enableVectorAgent: true
- 

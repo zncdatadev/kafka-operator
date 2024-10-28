@@ -108,7 +108,7 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object) (bo
 func ConvertToResourceRequirements(resources *kafkav1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
 	var (
 		cpuMin      = resource.MustParse("100m")
-		cpuMax      = resource.MustParse("500")
+		cpuMax      = resource.MustParse("500m")
 		memoryLimit = resource.MustParse("1Gi")
 	)
 	if resources != nil {
