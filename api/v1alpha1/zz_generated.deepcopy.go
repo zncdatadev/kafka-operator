@@ -121,8 +121,8 @@ func (in *BrokersRoleGroupSpec) DeepCopyInto(out *BrokersRoleGroupSpec) {
 		*out = new(BrokersConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -179,8 +179,8 @@ func (in *BrokersSpec) DeepCopyInto(out *BrokersSpec) {
 		*out = new(PodDisruptionBudgetSpec)
 		**out = **in
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

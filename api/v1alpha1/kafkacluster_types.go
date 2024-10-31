@@ -157,7 +157,7 @@ type BrokersSpec struct {
 	PodDisruptionBudget *PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	CommandArgsOverrides []string `json:"commandArgsOverrides,omitempty"`
+	CliOverrides []string `json:"cliOverrides,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	ConfigOverrides *ConfigOverridesSpec `json:"configOverrides,omitempty"`
@@ -175,7 +175,7 @@ type BrokersRoleGroupSpec struct {
 	Config *BrokersConfigSpec `json:"config,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	CommandArgsOverrides []string `json:"commandArgsOverrides,omitempty"`
+	CliOverrides []string `json:"cliOverrides,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	ConfigOverrides *ConfigOverridesSpec `json:"configOverrides,omitempty"`

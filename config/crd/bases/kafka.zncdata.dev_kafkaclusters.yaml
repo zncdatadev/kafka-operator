@@ -41,7 +41,7 @@ spec:
             properties:
               brokers:
                 properties:
-                  commandArgsOverrides:
+                  cliOverrides:
                     items:
                       type: string
                     type: array
@@ -1412,7 +1412,7 @@ spec:
                   roleGroups:
                     additionalProperties:
                       properties:
-                        commandArgsOverrides:
+                        cliOverrides:
                           items:
                             type: string
                           type: array
