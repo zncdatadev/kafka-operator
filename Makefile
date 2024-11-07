@@ -53,7 +53,7 @@ endif
 
 # Set the Operator SDK version to use. By default, what is installed on the system is used.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.34.2
+OPERATOR_SDK_VERSION ?= v1.37.0
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(REGISTRY)/$(PROJECT_NAME):$(VERSION)
@@ -201,8 +201,8 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.4.3
-CONTROLLER_TOOLS_VERSION ?= v0.16.1
+KUSTOMIZE_VERSION ?= v5.5.0
+CONTROLLER_TOOLS_VERSION ?= v0.16.5
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
@@ -369,9 +369,9 @@ helm-uninstall: ## Uninstall the helm chart.
 	$(HELM) uninstall --namespace $(TEST_NAMESPACE) $(PROJECT_NAME)
 
 # kind
-KIND_VERSION ?= v0.23.0
+KIND_VERSION ?= v0.24.0
 
-KINDTEST_K8S_VERSION ?= 1.26.14
+KINDTEST_K8S_VERSION ?= 1.26.15
 
 KIND_IMAGE ?= kindest/node:v${KINDTEST_K8S_VERSION}
 
@@ -408,7 +408,7 @@ kind-delete: kind ## Delete a kind cluster.
 # chainsaw
 
 CHAINSAW_RELEASE_URL ?= https://github.com/kyverno/chainsaw/releases/download/v0.2.8/chainsaw_linux_amd64.tar.gz
-CHAINSAW_VERSION ?= v0.2.8
+CHAINSAW_VERSION ?= v0.2.11
 CHAINSAW = $(LOCALBIN)/chainsaw
 
 .PHONY: chainsaw
