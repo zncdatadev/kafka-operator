@@ -8,7 +8,7 @@ import (
 	"github.com/zncdatadev/kafka-operator/internal/util"
 )
 
-//server.properties
+// server.properties
 
 // KafkaServerConfGenerator kafka config generator
 type KafkaServerConfGenerator struct {
@@ -16,25 +16,25 @@ type KafkaServerConfGenerator struct {
 }
 
 // example:
-//controlled.shutdown.enable=true
-//inter.broker.listener.name=INTERNAL
-//listener.name.internal.ssl.client.auth=required
-//listener.name.internal.ssl.keystore.location=/stackroot/tls_keystore_internal/keystore.p12
-//listener.name.internal.ssl.keystore.password=
-//listener.name.internal.ssl.keystore.type=PKCS12
-//listener.name.internal.ssl.truststore.location=/stackroot/tls_keystore_internal/truststore.p12
-//listener.name.internal.ssl.truststore.password=
-//listener.name.internal.ssl.truststore.type=PKCS12
-//log.dirs=/stackroot/data/topicdata
-//zookeeper.connect=localhost\:2181
-//zookeeper.connection.timeout.ms=18000
+// controlled.shutdown.enable=true
+// inter.broker.listener.name=INTERNAL
+// listener.name.internal.ssl.client.auth=required
+// listener.name.internal.ssl.keystore.location=/stackroot/tls_keystore_internal/keystore.p12
+// listener.name.internal.ssl.keystore.password=
+// listener.name.internal.ssl.keystore.type=PKCS12
+// listener.name.internal.ssl.truststore.location=/stackroot/tls_keystore_internal/truststore.p12
+// listener.name.internal.ssl.truststore.password=
+// listener.name.internal.ssl.truststore.type=PKCS12
+// log.dirs=/stackroot/data/topicdata
+// zookeeper.connect=localhost\:2181
+// zookeeper.connection.timeout.ms=18000
 
 func (k *KafkaServerConfGenerator) Generate() (string, error) {
 	serverConfig := map[string]string{
 		"zookeeper.connection.timeout.ms": "18000",
 	}
 	maps.Copy(serverConfig, k.gracefulShutdownConfigProperties()) // shutdown
-	maps.Copy(serverConfig, k.KafkaTlsSecurity.ConfigSettings())  //tls
+	maps.Copy(serverConfig, k.KafkaTlsSecurity.ConfigSettings())  // tls
 
 	serverConfig["log.dirs"] = k.DataDir()
 

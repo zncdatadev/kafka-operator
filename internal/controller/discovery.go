@@ -15,7 +15,7 @@ import (
 
 const discoveryKey = "KAFKA"
 
-//const nodeDiscoveryKey = "KAFKA_NODE"
+// const nodeDiscoveryKey = "KAFKA_NODE"
 
 type Discovery struct {
 	common.GeneralResourceStyleReconciler[*kafkav1alpha1.KafkaCluster, any]
@@ -56,7 +56,7 @@ func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
 		},
 		Data: map[string]string{
 			discoveryKey: dnsDomain,
-			//nodeDiscoveryKey:
+			// nodeDiscoveryKey:
 		},
 	}, nil
 }

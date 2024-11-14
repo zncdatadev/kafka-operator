@@ -52,7 +52,7 @@ func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) 
 			&config.Log4jConfGenerator{LoggingSpec: c.MergedCfg.Config.Logging.Broker, Container: string(common.Kafka)},
 			&config.SecurityConfGenerator{},
 			&config.KafkaServerConfGenerator{KafkaTlsSecurity: c.KafkaTlsSecurity},
-			//&KafkaConfGenerator{sslSpec: c.MergedCfg.Config.Ssl},
+			// &KafkaConfGenerator{sslSpec: c.MergedCfg.Config.Ssl},
 		},
 	}
 
@@ -85,10 +85,10 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 			overridden := common.OverrideConfigFileContent(cm.Data[kafkav1alpha1.SecurityFileName], security, common.Properties)
 			cm.Data[kafkav1alpha1.SecurityFileName] = overridden
 		}
-		//if server := overrides.Server; server != nil {
+		// if server := overrides.Server; server != nil {
 		//	overridden := common.OverrideConfigFileContent(cm.Data[kafkav1alpha1.ServerFileName], server, common.Properties)
 		//	cm.Data[kafkav1alpha1.ServerFileName] = overridden
-		//}
+		// }
 	}
 	// c.LoggingOverride(cm)
 }

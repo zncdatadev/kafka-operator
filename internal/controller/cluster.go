@@ -70,7 +70,7 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 		}
 	}
 
-	//reconcile role
+	// reconcile role
 	for _, r := range c.roleReconcilers {
 		res, err := r.ReconcileRole(ctx)
 		if err != nil {

@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2024 zncdatadev.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,16 +36,16 @@ type KafkaClusterReconciler struct {
 	Log    logr.Logger
 }
 
-//+kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -87,7 +87,7 @@ func (r *KafkaClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *KafkaClusterReconciler) UpdateStatus(ctx context.Context, instance *kafkav1alpha1.KafkaCluster) error {
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		return r.Status().Update(ctx, instance)
-		//return r.Status().Patch(ctx, instance, client.MergeFrom(instance))
+		// return r.Status().Patch(ctx, instance, client.MergeFrom(instance))
 	})
 
 	if retryErr != nil {

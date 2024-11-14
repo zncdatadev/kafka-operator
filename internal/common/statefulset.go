@@ -47,8 +47,8 @@ const (
 	EphemeralSecret VolumeSourceType = "ephemeralSecret"
 )
 
-var VolumeTypeHandlers = map[VolumeSourceType]func(string, *VolumeSourceParams) corev1.VolumeSource{
-	EmptyDir: func(name string, params *VolumeSourceParams) corev1.VolumeSource {
+var VolumeTypeHandlers = map[VolumeSourceType]func(*VolumeSourceParams) corev1.VolumeSource{
+	EmptyDir: func(params *VolumeSourceParams) corev1.VolumeSource {
 		return corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{
 				SizeLimit: func() *resource.Quantity {
@@ -61,7 +61,7 @@ var VolumeTypeHandlers = map[VolumeSourceType]func(string, *VolumeSourceParams) 
 			},
 		}
 	},
-	ConfigMap: func(name string, params *VolumeSourceParams) corev1.VolumeSource {
+	ConfigMap: func(params *VolumeSourceParams) corev1.VolumeSource {
 		param := params.ConfigMap
 		source := corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -75,14 +75,14 @@ var VolumeTypeHandlers = map[VolumeSourceType]func(string, *VolumeSourceParams) 
 		}
 		return source
 	},
-	Secret: func(name string, params *VolumeSourceParams) corev1.VolumeSource {
+	Secret: func(params *VolumeSourceParams) corev1.VolumeSource {
 		return corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: params.SecretName,
 			},
 		}
 	},
-	EphemeralSecret: func(name string, params *VolumeSourceParams) corev1.VolumeSource {
+	EphemeralSecret: func(params *VolumeSourceParams) corev1.VolumeSource {
 		param := params.EphemeralSecret
 		return corev1.VolumeSource{
 			Ephemeral: &corev1.EphemeralVolumeSource{
@@ -212,12 +212,12 @@ func (s *StatefulSetBuilder) Build() *appsv1.StatefulSet {
 
 // create statefulSet volumes
 func (s *StatefulSetBuilder) createVolumes() []corev1.Volume {
-	volumes := make([]corev1.Volume, 0)
+	volumes := make([]corev1.Volume, 0, len(s.Volumes))
 	for _, v := range s.Volumes {
 		volumeHandler := VolumeTypeHandlers[v.SourceType]
 		volumes = append(volumes, corev1.Volume{
 			Name:         v.Name,
-			VolumeSource: volumeHandler(v.Name, v.Params),
+			VolumeSource: volumeHandler(v.Params),
 		})
 	}
 	return volumes
