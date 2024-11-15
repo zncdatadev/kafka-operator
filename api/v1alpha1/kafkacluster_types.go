@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2024 zncdatadev.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -62,8 +62,8 @@ const (
 	KubedoopLogDir       = KubedoopRoot + "/log"
 )
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // KafkaCluster is the Schema for the kafkaclusters API
 type KafkaCluster struct {
@@ -74,7 +74,7 @@ type KafkaCluster struct {
 	Status status.Status    `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // KafkaClusterList contains a list of KafkaCluster
 type KafkaClusterList struct {
@@ -120,8 +120,8 @@ type TlsSpec struct {
 	//
 	// +kubebuilder:validation:Optional
 	ServerSecretClass string `json:"serverSecretClass,omitempty"`
-	//The SecretClass to use for client connections. This setting controls: - If TLS encryption is used at all -
-	//Which cert the servers should use to authenticate themselves against the client Defaults to tls.
+	// The SecretClass to use for client connections. This setting controls: - If TLS encryption is used at all -
+	// Which cert the servers should use to authenticate themselves against the client Defaults to tls.
 	//
 	// +kubebuilder:validation:Optional
 	InternalSecretClass string `json:"internalSecretClass,omitempty"`

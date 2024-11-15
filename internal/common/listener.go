@@ -54,7 +54,7 @@ type KafkaListenerConfig struct {
 }
 
 func (config *KafkaListenerConfig) ListenersString() string {
-	var listeners []string
+	listeners := make([]string, 0, len(config.Listeners))
 	for _, listener := range config.Listeners {
 		listeners = append(listeners, listener.String())
 	}
@@ -62,7 +62,7 @@ func (config *KafkaListenerConfig) ListenersString() string {
 }
 
 func (config *KafkaListenerConfig) AdvertisedListenersString() string {
-	var advertisedListeners []string
+	advertisedListeners := make([]string, 0, len(config.AdvertisedListeners))
 	for _, listener := range config.AdvertisedListeners {
 		advertisedListeners = append(advertisedListeners, listener.String())
 	}
@@ -70,7 +70,7 @@ func (config *KafkaListenerConfig) AdvertisedListenersString() string {
 }
 
 func (config *KafkaListenerConfig) ListenerSecurityProtocolMapString() string {
-	var protocolMap []string
+	protocolMap := make([]string, 0, len(config.ListenerSecurityProtocolMap))
 	for name, protocol := range config.ListenerSecurityProtocolMap {
 		protocolMap = append(protocolMap, fmt.Sprintf("%s:%s", name, protocol))
 	}
@@ -78,10 +78,7 @@ func (config *KafkaListenerConfig) ListenerSecurityProtocolMapString() string {
 }
 
 func GetKafkaListenerConfig(namespace string, kafkaSecurity *security.KafkaTlsSecurity, objectName string) (*KafkaListenerConfig, error) {
-	podFqdn, err := podFqdn(namespace, objectName)
-	if err != nil {
-		return nil, err
-	}
+	podFqdn := podFqdn(namespace, objectName)
 
 	var listeners []KafkaListener
 	var advertisedListeners []KafkaListener
@@ -162,6 +159,6 @@ func nodePortCmd(directory string) string {
 	return fmt.Sprintf("$(cat %s/%s)", directory, NodePortFileName)
 }
 
-func podFqdn(namespace string, objectName string) (string, error) {
-	return fmt.Sprintf("$POD_NAME.%s.%s.svc.cluster.local", objectName, namespace), nil
+func podFqdn(namespace string, objectName string) string {
+	return fmt.Sprintf("$POD_NAME.%s.%s.svc.cluster.local", objectName, namespace)
 }

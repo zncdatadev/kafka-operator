@@ -53,6 +53,8 @@ const (
 	KubedoopTLSKeyStoreInternalDirName = "tls-keystore-internal"
 )
 
+const PKCS12 = "PKCS12"
+
 type KafkaTlsSecurity struct {
 	ResolvedAnthenticationClass string
 	InternalSecretClass         string
@@ -208,28 +210,28 @@ func (k *KafkaTlsSecurity) ConfigSettings() map[string]string {
 	if k.TlsClientAuthenticationClass() != "" {
 		config[ClientAuthSSLKeyStoreLocation] = fmt.Sprintf("%s/keystore.p12", KubedoopTLSKeyStoreServerDir)
 		config[ClientAuthSSLKeyStorePassword] = k.SSLStorePassword
-		config[ClientAuthSSLKeyStoreType] = "PKCS12"
+		config[ClientAuthSSLKeyStoreType] = PKCS12
 		config[ClientAuthSSLTrustStoreLocation] = fmt.Sprintf("%s/truststore.p12", KubedoopTLSKeyStoreServerDir)
 		config[ClientAuthSSLTrustStorePassword] = k.SSLStorePassword
-		config[ClientAuthSSLTrustStoreType] = "PKCS12"
+		config[ClientAuthSSLTrustStoreType] = PKCS12
 		// client auth required
 		config[ClientAuthSSLClientAuth] = "required"
 	} else if k.TlsServerSecretClass() != "" {
 		config[ClientSSLKeyStoreLocation] = fmt.Sprintf("%s/keystore.p12", KubedoopTLSKeyStoreServerDir)
 		config[ClientSSLKeyStorePassword] = k.SSLStorePassword
-		config[ClientSSLKeyStoreType] = "PKCS12"
+		config[ClientSSLKeyStoreType] = PKCS12
 		config[ClientSSLTrustStoreLocation] = fmt.Sprintf("%s/truststore.p12", KubedoopTLSKeyStoreServerDir)
 		config[ClientSSLTrustStorePassword] = k.SSLStorePassword
-		config[ClientSSLTrustStoreType] = "PKCS12"
+		config[ClientSSLTrustStoreType] = PKCS12
 	}
 	// Internal tls
 	if k.TlsInternalSecretClass() != "" {
 		config[InterSSLKeyStoreLocation] = fmt.Sprintf("%s/keystore.p12", KubedoopTLSKeyStoreInternalDir)
 		config[InterSSLKeyStorePassword] = k.SSLStorePassword
-		config[InterSSLKeyStoreType] = "PKCS12"
+		config[InterSSLKeyStoreType] = PKCS12
 		config[InterSSLTrustStoreLocation] = fmt.Sprintf("%s/truststore.p12", KubedoopTLSKeyStoreInternalDir)
 		config[InterSSLTrustStorePassword] = k.SSLStorePassword
-		config[InterSSLTrustStoreType] = "PKCS12"
+		config[InterSSLTrustStoreType] = PKCS12
 		config[InterSSLClientAuth] = "required"
 	}
 	// common

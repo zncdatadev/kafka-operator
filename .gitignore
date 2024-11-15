@@ -142,15 +142,8 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# olm
-bundle
-bundle.Dockerfile
-
 kind-kubeconfig*
 kind-config-local.yaml
-catalog.Dockerfile
-catalog
-
 # test
 ginkgo.report
 cover.out
@@ -159,5 +152,3 @@ cmd/__debug*
 
 # ai code local
 .codiumai.toml
-
-

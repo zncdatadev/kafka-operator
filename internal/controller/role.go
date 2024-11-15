@@ -116,7 +116,7 @@ func (m *RoleGroup) RegisterResource() {
 
 	tlsSecurity := security.NewKafkaTlsSecurity(m.Instance.Spec.ClusterConfig.Tls)
 
-	//logDataBuilder := &LogDataBuilder{cfg: mergedCfg}
+	// logDataBuilder := &LogDataBuilder{cfg: mergedCfg}
 
 	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, tlsSecurity)
 	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, tlsSecurity)

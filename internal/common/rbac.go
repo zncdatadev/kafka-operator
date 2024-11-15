@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,11 +16,11 @@ type VerbType string
 type ResourceType string
 
 const (
-	//ServiceAccount sa
+	// ServiceAccount sa
 
 	ServiceAccount = "ServiceAccount"
 
-	//role
+	// role
 	RbacRole        RbacRoleType = "Role"
 	RbacClusterRole RbacRoleType = "ClusterRole"
 
@@ -27,7 +28,7 @@ const (
 	RoleBinding        RbacRoleBindingType = "RoleBinding"
 	ClusterRoleBinding RbacRoleBindingType = "ClusterRoleBinding"
 
-	//verbs
+	// verbs
 	VerbsAll   VerbType = "*"
 	Create     VerbType = "create"
 	Update     VerbType = "update"
@@ -37,7 +38,7 @@ const (
 	Patch      VerbType = "patch"
 	Watch      VerbType = "watch"
 
-	//resource types
+	// resource types
 	ResourceAll     ResourceType = "*"
 	ServiceAccounts ResourceType = "serviceaccounts"
 	ConfigMaps      ResourceType = "configmaps"
@@ -48,7 +49,7 @@ const (
 	Events          ResourceType = "events"
 	StatefulSets    ResourceType = "statefulsets"
 
-	//api group
+	// api group
 	ApiGroupALL = "*"
 )
 

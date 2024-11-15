@@ -106,7 +106,7 @@ func (g *Log4jConfGenerator) Config() *Log4jConfig {
 		ConsoleConversionPattern: ConsoleConversionPattern,
 		ConsoleLogLevel:          consoleLogLevel,
 		FileLogLevel:             fileLogLevel,
-		LogDir:                   kafkav1alpha1.KubedoopLogDir + "/" + strings.ToLower(string(g.Container)),
+		LogDir:                   kafkav1alpha1.KubedoopLogDir + "/" + strings.ToLower(g.Container),
 		LogFile:                  KafkaLogFile,
 		MaxLogFileSizeInMiB:      int(maxLogFileSizeInMiB),
 		NumberOfArchivedLogFiles: numberOfArchivedLogFiles,
