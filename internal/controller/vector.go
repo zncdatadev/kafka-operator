@@ -51,7 +51,7 @@ func ExtendConfigMapByVector(ctx context.Context, params VectorConfigParams, dat
 	if err != nil {
 		vectorLogger.Error(errors.Wrap(err, "error creating vector YAML"), "failed to create vector YAML")
 	} else {
-		data[builder.VectorConfigFile] = vectorYaml
+		data[builder.VectorConfigFileName] = vectorYaml
 	}
 }
 

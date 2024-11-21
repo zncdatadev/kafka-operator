@@ -18,15 +18,6 @@ spec:
               max: "800m"
             memory:
               limit: "2Gi"
-          logging:
-            zookeeperCluster:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: INFO
-              file:
-                level: INFO
 ---
 apiVersion: zookeeper.kubedoop.dev/v1alpha1
 kind: ZookeeperZnode
