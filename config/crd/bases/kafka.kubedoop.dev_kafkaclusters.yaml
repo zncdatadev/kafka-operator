@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: kafkaclusters.kafka.zncdata.dev
+  name: kafkaclusters.kafka.kubedoop.dev
 spec:
-  group: kafka.zncdata.dev
+  group: kafka.kubedoop.dev
   names:
     kind: KafkaCluster
     listKind: KafkaClusterList

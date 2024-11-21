@@ -36,9 +36,9 @@ type KafkaClusterReconciler struct {
 	Log    logr.Logger
 }
 
-// +kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=kafka.zncdata.dev,resources=kafkaclusters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=kafka.kubedoop.dev,resources=kafkaclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kafka.kubedoop.dev,resources=kafkaclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kafka.kubedoop.dev,resources=kafkaclusters/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete

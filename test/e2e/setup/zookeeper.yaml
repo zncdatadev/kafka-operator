@@ -1,4 +1,4 @@
-apiVersion: zookeeper.zncdata.dev/v1alpha1
+apiVersion: zookeeper.kubedoop.dev/v1alpha1
 kind: ZookeeperCluster
 metadata:
   name: zookeepercluster-sample
@@ -28,7 +28,7 @@ spec:
               file:
                 level: INFO
 ---
-apiVersion: zookeeper.zncdata.dev/v1alpha1
+apiVersion: zookeeper.kubedoop.dev/v1alpha1
 kind: ZookeeperZnode
 metadata:
   labels:
@@ -41,4 +41,3 @@ metadata:
 spec:
   clusterRef:
     name: zookeepercluster-sample
-

@@ -1,4 +1,4 @@
-apiVersion: kafka.zncdata.dev/v1alpha1
+apiVersion: kafka.kubedoop.dev/v1alpha1
 kind: KafkaCluster
 metadata:
   labels:
