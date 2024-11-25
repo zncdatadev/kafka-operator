@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1alpha1 contains API Schema definitions for the kafka v1alpha1 API group
 // +kubebuilder:object:generate=true
-// +groupName=kafka.zncdata.dev
+// +groupName=kafka.kubedoop.dev
 package v1alpha1
 
 import (
@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
-const GroupName = "kafka.zncdata.dev"
+const GroupName = "kafka.kubedoop.dev"
 
 var (
 	// GroupVersion is group version used to register these objects

@@ -173,7 +173,7 @@ func (d *KafkaContainerBuilder) Command() []string {
 }
 
 // CommandArgs command args
-// ex: export NODE_PORT=$(cat /zncdata/tmp/kafka_nodepor
+// ex: export NODE_PORT=$(cat /kubedoop/tmp/kafka_nodepor
 func (d *KafkaContainerBuilder) CommandArgs() []string {
 	listenerConfig, err := common.GetKafkaListenerConfig(d.namespace, d.KafkaTlsSecurity, d.groupSvcName)
 	if err != nil {

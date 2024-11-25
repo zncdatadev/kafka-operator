@@ -40,7 +40,7 @@ func (s *SecretVolumeBuilder) Build() corev1.Volume {
 					Spec: corev1.PersistentVolumeClaimSpec{
 						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						StorageClassName: func() *string {
-							cs := "secrets.zncdata.dev"
+							cs := "secrets.kubedoop.dev"
 							return &cs
 						}(),
 						VolumeMode: func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),

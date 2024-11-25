@@ -1,4 +1,4 @@
-apiVersion: zookeeper.zncdata.dev/v1alpha1
+apiVersion: zookeeper.kubedoop.dev/v1alpha1
 kind: ZookeeperCluster
 metadata:
   name: zookeepercluster-sample
@@ -18,17 +18,8 @@ spec:
               max: "800m"
             memory:
               limit: "2Gi"
-          logging:
-            zookeeperCluster:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: INFO
-              file:
-                level: INFO
 ---
-apiVersion: zookeeper.zncdata.dev/v1alpha1
+apiVersion: zookeeper.kubedoop.dev/v1alpha1
 kind: ZookeeperZnode
 metadata:
   labels:
@@ -41,4 +32,3 @@ metadata:
 spec:
   clusterRef:
     name: zookeepercluster-sample
-
