@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -130,10 +129,6 @@ func (s *StatefulSetReconciler) makeKafkaContainer() []corev1.Container {
 	builder := container.NewKafkaContainerBuilder(imageName, util.ImagePullPolicy(imageSpec), zNode, resourceSpec, s.KafkaTlsSecurity, s.Instance.Namespace, groupSvcName)
 	kafkaContainer := builder.Build(builder)
 
-	// for test
-	kafkaContainer.SecurityContext = &corev1.SecurityContext{
-		RunAsUser: ptr.To(int64(0)),
-	}
 	return []corev1.Container{
 		kafkaContainer,
 	}
