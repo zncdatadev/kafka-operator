@@ -44,12 +44,17 @@ func NewConfigMap(
 	}
 }
 func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) {
+	var loggingConfigSpec *kafkav1alpha1.LoggingConfigSpec
+	if c.MergedCfg.Config != nil && c.MergedCfg.Config.Logging != nil && c.MergedCfg.Config.Logging.Broker != nil {
+		loggingConfigSpec = c.MergedCfg.Config.Logging.Broker
+	}
+
 	builder := common.ConfigMapBuilder{
 		Name:      common.CreateConfigName(c.Instance.GetName(), c.GroupName),
 		Namespace: c.Instance.Namespace,
 		Labels:    c.Labels,
 		ConfigGenerators: []common.ConfigGenerator{
-			&config.Log4jConfGenerator{LoggingSpec: c.MergedCfg.Config.Logging.Broker, Container: string(common.Kafka)},
+			&config.Log4jConfGenerator{LoggingSpec: loggingConfigSpec, Container: string(common.Kafka)},
 			&config.SecurityConfGenerator{},
 			&config.KafkaServerConfGenerator{KafkaTlsSecurity: c.KafkaTlsSecurity},
 			// &KafkaConfGenerator{sslSpec: c.MergedCfg.Config.Ssl},
