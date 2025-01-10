@@ -1,0 +1,104 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: logging
+spec:
+  bindings:
+  steps:
+  - name: install vector-aggregator
+    try:
+    - script:
+        content: >-
+          helm upgrade --install vector-aggregator vector
+          --namespace $NAMESPACE
+          --version 0.36.1
+          --repo https://helm.vector.dev
+          --values vector-aggregator-values.yaml
+    - apply:
+        file: vector-aggregator.yaml
+    - assert:
+        file: vector-aggregator-assert.yaml
+  - name: install zookeeper cluster
+    try:
+    - apply:
+        file: ../setup/zookeeper.yaml
+    - assert:
+        file: ../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 30s
+  - name: install kakfka cluster
+    try:
+    - apply:
+        file: kafka.yaml
+    - assert:
+        file: kafka-assert.yaml
+  - name: assert kafka logs
+    try:
+    - sleep:
+        duration: 50s
+    - script:
+        env:
+          - name: NAMESPACE
+            value: ($namespace)
+        content: |
+          #!/bin/bash
+          # Get logs from vector-aggregator-0 and check for specific log pattern
+          kubectl -n $NAMESPACE logs statefulset/vector-aggregator -c vector | \
+            grep -q '"cluster":"kafkacluster-sample","container":"kafka","errors":\[\],"file":"kafka.log4j.xml"'
+          exit_code=$?
+
+          if [ $exit_code -eq 0 ]; then
+            echo "Found expected log pattern"
+            exit 0
+          else
+            echo "Did not find expected log pattern"
+            exit 1
+          fi
+    cleanup:
+    - sleep:
+        duration: 50s
+  - name: access kafka
+    try:
+      - apply:
+          file: client-access-configmap.yaml
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            export KAFKA_IMAGE=$(
+            kubectl -n $NAMESPACE get statefulset kafkacluster-sample-default-broker \
+            -o jsonpath='{.spec.template.spec.containers[?(.name=="kafka")].image}'
+            )
+            export KAFKA_DISCOVERY=$(
+            kubectl -n $NAMESPACE get kafkaclusters.kafka.kubedoop.dev \
+            -o jsonpath='{.items[0].metadata.name}'
+            )
+            echo "KAFKA_IMAGE=$KAFKA_IMAGE"
+            echo "KAFKA_DISCOVERY=$KAFKA_DISCOVERY"
+
+            envsubst '${KAFKA_IMAGE} ${KAFKA_DISCOVERY}' < client-access-pod.txt | kubectl -n $NAMESPACE apply -f -
+      - assert:
+          timeout: 150s
+          resource:
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              name: client-access
+            status:
+              phase: Succeeded
+  catch:
+    - podLogs:
+        name: client-access
+        container: client-access
+    - describe:
+        apiVersion: v1
+        kind: Pod
+        name: client-access
+    - script:
+        env:
+          - name: NAMESPACE
+            value: ($namespace)
+        content: |
+          kubectl -n $NAMESPACE get pod client-access -o yaml
