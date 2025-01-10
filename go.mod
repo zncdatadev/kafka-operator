@@ -1,6 +1,6 @@
 module github.com/zncdatadev/kafka-operator
 
-go 1.23.2
+go 1.23.4
 
 require (
 	emperror.dev/errors v0.8.1
