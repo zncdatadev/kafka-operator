@@ -2,6 +2,7 @@ package security
 
 import (
 	"fmt"
+	"strings"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/util"
@@ -169,7 +170,6 @@ func (k *KafkaTlsSecurity) KcatClientSsl(certDirectory string) []string {
 func (k *KafkaTlsSecurity) AddVolumeAndVolumeMounts(sts *appsv1.StatefulSet) {
 	kafkaContainer := k.getContainer(sts.Spec.Template.Spec.Containers, "kafka")
 	if tlsServerSecretClass := k.TlsServerSecretClass(); tlsServerSecretClass != "" {
-		k.AddVolume(sts, CreateTlsVolume(KubedoopTLSCertServerDirName, tlsServerSecretClass, k.SSLStorePassword))
 		// cbKcatProber.AddVolumeMount(KubedoopTLSCertServerDirName, KubedoopTLSCertServerDir) todo
 		k.AddVolume(sts, CreateTlsKeystoreVolume(KubedoopTLSKeyStoreServerDirName, tlsServerSecretClass, k.SSLStorePassword))
 		k.AddVolumeMount(kafkaContainer, KubedoopTLSKeyStoreServerDirName, KubedoopTLSKeyStoreServerDir)
@@ -235,28 +235,18 @@ func (k *KafkaTlsSecurity) ConfigSettings() map[string]string {
 		config[InterSSLClientAuth] = "required"
 	}
 	// common
-	config[InterBrokerListenerName] = "internal"
+	config[InterBrokerListenerName] = "INTERNAL"
 	return config
-}
-
-func CreateTlsVolume(volumeName, secretClass, sslStorePassword string) corev1.Volume {
-	builder := util.SecretVolumeBuilder{VolumeName: volumeName}
-	builder.SetAnnotations(map[string]string{
-		constants.AnnotationSecretsClass: secretClass,
-		constants.AnnotationSecretsScope: fmt.Sprintf("%s,%s", constants.PodScope, constants.NodeScope),
-	})
-	if sslStorePassword != "" {
-		builder.AddAnnotation(constants.AnnotationSecretsPKCS12Password, sslStorePassword)
-	}
-	return builder.Build()
 }
 
 // // CreateTlsKeystoreVolume creates ephemeral volumes to mount the SecretClass into the Pods as keystores
 func CreateTlsKeystoreVolume(volumeName, secretClass, sslStorePassword string) corev1.Volume {
 	builder := util.SecretVolumeBuilder{VolumeName: volumeName}
+	svcScope := fmt.Sprintf("%s=%s", constants.ServiceScope, "kafkacluster-sample")
+	secretScopes := []string{svcScope, string(constants.PodScope), string(constants.NodeScope)}
 	builder.SetAnnotations(map[string]string{
 		constants.AnnotationSecretsClass:  secretClass,
-		constants.AnnotationSecretsScope:  fmt.Sprintf("%s,%s", constants.PodScope, constants.NodeScope),
+		constants.AnnotationSecretsScope:  strings.Join(secretScopes, constants.CommonDelimiter),
 		constants.AnnotationSecretsFormat: string(constants.TLSP12),
 	})
 	if sslStorePassword != "" {

@@ -9,12 +9,11 @@ metadata:
     app.kubernetes.io/created-by: kafka-operator
   name: kafkacluster-sample
 spec:
+  image:
+    productVersion: ($values.product_version)
   clusterConfig:
-    tls:
-      sslStorePassword: "123456"
-      internalSecretClass: tls
-      serverSecretClass: tls
     zookeeperConfigMapName: kafka-znode
+    vectorAggregatorConfigMapName: vector-aggregator-discovery
   brokers:
     roleGroups:
       default:
@@ -27,11 +26,4 @@ spec:
             memory:
               limit: "1Gi"
           logging:
-            broker:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: WARN
-              file:
-                level: ERROR
+            enableVectorAgent: true

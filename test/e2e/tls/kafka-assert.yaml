@@ -4,6 +4,7 @@ metadata:
   name: kafkacluster-sample-default-broker
 status:
   replicas: 3
+  availableReplicas: 3
 ---
 apiVersion: v1
 kind: ConfigMap

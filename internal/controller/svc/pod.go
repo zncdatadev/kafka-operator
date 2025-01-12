@@ -133,7 +133,7 @@ func (p *PodServiceReconciler) ServicePorts() []corev1.ServicePort {
 		{
 			Name:       p.KafkaTlsSecurity.ClientPortName(),
 			Port:       int32(p.KafkaTlsSecurity.ClientPort()),
-			TargetPort: intstr.FromString(kafkav1alpha1.ClientPortName),
+			TargetPort: intstr.FromString(p.KafkaTlsSecurity.ClientPortName()),
 		},
 		{
 			Name:       kafkav1alpha1.MetricsPortName,

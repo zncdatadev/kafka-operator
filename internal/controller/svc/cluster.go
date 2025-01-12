@@ -21,7 +21,7 @@ func NewClusterService(
 	headlessServiceType := common.Service
 	serviceType := corev1.ServiceTypeNodePort
 	builder := common.NewServiceBuilder(
-		CreateGroupServiceName(instance.GetName(), ""),
+		CreateClusterServiceName(instance.GetName()),
 		instance.GetNamespace(),
 		labels,
 		makePorts(tlsSecurity),

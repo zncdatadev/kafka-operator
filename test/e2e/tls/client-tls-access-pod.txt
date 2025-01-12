@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client-tls-access
+  labels:
+    name: client-tls-access
+spec:
+  restartPolicy: Never
+  containers:
+  - name: client-tls-access
+    securityContext:
+      runAsUser: 0
+    image: ${KAFKA_IMAGE}
+    env:
+    - name: KAFKA
+      valueFrom:
+        configMapKeyRef:
+          key: KAFKA
+          name: ${KAFKA_DISCOVERY}
+    - name: KAFKA_HEAP_OPTS
+      value: "-Xmx819m"
+    command:
+    - /bin/sh
+    args:
+    - -c
+    - bash /kubedoop/test/client-tls-access.sh
+    resources:
+      limits:
+        memory: "1.5Gi"
+        cpu: "300m"
+    volumeMounts:
+    - name: client-tls
+      mountPath: /kubedoop/client-tls
+    - name: test-scripts
+      mountPath: /kubedoop/test
+  volumes:
+  - name: test-scripts
+    configMap:
+      name: client-tls-access
+  - name: client-tls
+    ephemeral:
+      volumeClaimTemplate:
+        metadata:
+          annotations:
+            secrets.kubedoop.dev/class: tls
+            secrets.kubedoop.dev/format: tls-p12
+            secrets.kubedoop.dev/scope: pod,node,service=kafkacluster-sample
+            secrets.kubedoop.dev/tlsPKCS12Password: "123456"
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Mi
+          storageClassName: secrets.kubedoop.dev
+          volumeMode: Filesystem

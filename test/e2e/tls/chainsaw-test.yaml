@@ -1,0 +1,55 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: tls
+spec:
+  bindings:
+  steps:
+  - name: install zookeeper cluster
+    try:
+    - apply:
+        file: ../setup/zookeeper.yaml
+    - assert:
+        file: ../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 30s
+  - name: install kakfka cluster
+    try:
+    - apply:
+        file: kafka.yaml
+    - assert:
+        file: kafka-assert.yaml
+  - name: tls client access test
+    try:
+      - apply:
+          file: client-tls-access-configmap.yaml
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            export KAFKA_IMAGE=$(
+            kubectl -n $NAMESPACE get statefulset kafkacluster-sample-default-broker \
+            -o jsonpath='{.spec.template.spec.containers[?(.name=="kafka")].image}'
+            )
+            export KAFKA_DISCOVERY=$(
+            kubectl -n $NAMESPACE get kafkaclusters.kafka.kubedoop.dev \
+            -o jsonpath='{.items[0].metadata.name}'
+            )
+            echo "KAFKA_IMAGE=$KAFKA_IMAGE"
+            echo "KAFKA_DISCOVERY=$KAFKA_DISCOVERY"
+
+            envsubst '${KAFKA_IMAGE} ${KAFKA_DISCOVERY}' < client-tls-access-pod.txt | kubectl -n $NAMESPACE apply -f -
+      - assert:
+          resource:
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              name: client-tls-access
+            status:
+              phase: Succeeded
+    catch:
+      - podLogs:
+          name: client-tls-access
+          container: client-tls-access

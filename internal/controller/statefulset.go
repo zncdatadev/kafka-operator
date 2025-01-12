@@ -128,6 +128,7 @@ func (s *StatefulSetReconciler) makeKafkaContainer() []corev1.Container {
 	groupSvcName := svc.CreateGroupServiceName(s.Instance.GetName(), s.GroupName)
 	builder := container.NewKafkaContainerBuilder(imageName, util.ImagePullPolicy(imageSpec), zNode, resourceSpec, s.KafkaTlsSecurity, s.Instance.Namespace, groupSvcName)
 	kafkaContainer := builder.Build(builder)
+
 	return []corev1.Container{
 		kafkaContainer,
 	}
