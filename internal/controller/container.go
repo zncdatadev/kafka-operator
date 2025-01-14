@@ -1,39 +1,41 @@
-package container
+package controller
 
 import (
 	"fmt"
 	"strings"
 
-	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
-	"github.com/zncdatadev/kafka-operator/internal/common"
 	"github.com/zncdatadev/kafka-operator/internal/security"
 	"github.com/zncdatadev/kafka-operator/internal/util"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	opgputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 )
 
+// ContainerComponent use for define container name
+type ContainerComponent string
+
 type KafkaContainerBuilder struct {
-	common.ContainerBuilder
+	resourceSpec *commonsv1alpha1.ResourcesSpec
+
 	zookeeperDiscoveryZNode string
-	resourceSpec            *kafkav1alpha1.ResourcesSpec
 	*security.KafkaTlsSecurity
 	namespace    string
 	groupSvcName string
 }
 
-func NewKafkaContainerBuilder(
+func NewKafkaContainer(
 	image string,
 	imagePullPolicy corev1.PullPolicy,
 	zookeeperDiscoveryZNode string,
-	resourceSpec *kafkav1alpha1.ResourcesSpec,
 	tlsSecurity *security.KafkaTlsSecurity,
 	namespace string,
 	groupSvcName string,
 ) *KafkaContainerBuilder {
 	return &KafkaContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
-		resourceSpec:            resourceSpec,
 		KafkaTlsSecurity:        tlsSecurity,
 		namespace:               namespace,
 		groupSvcName:            groupSvcName,
@@ -41,53 +43,50 @@ func NewKafkaContainerBuilder(
 }
 
 func (d *KafkaContainerBuilder) ContainerName() string {
-	return string(common.Kafka)
+	return string(Kafka)
 }
 
 func (d *KafkaContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	// kafkaCfgGenerator := config.KafkaServerConfGenerator{
-	// 	KafkaTlsSecurity: d.KafkaTlsSecurity,
-	// }
 	envs := []corev1.EnvVar{
 		{
-			Name: common.EnvPodName,
+			Name: EnvPodName,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"},
 			},
 		},
 		{
-			Name: common.EnvNode,
+			Name: EnvNode,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.hostIP"},
 			},
 		},
 		{
-			Name: common.EnvZookeeperConnections,
+			Name: EnvZookeeperConnections,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: d.zookeeperDiscoveryZNode,
 					},
-					Key: common.ZookeeperDiscoveryKey,
+					Key: ZookeeperDiscoveryKey,
 				},
 			},
 		},
 		{
-			Name:  common.EnvKafkaLog4jOpts,
+			Name:  EnvKafkaLog4jOpts,
 			Value: fmt.Sprintf("-Dlog4j.configuration=file:%s/%s", kafkav1alpha1.KubedoopLogConfigDir, kafkav1alpha1.Log4jFileName),
 		},
 		{
-			Name: common.EnvJvmArgs,
+			Name: EnvJvmArgs,
 			Value: fmt.Sprintf("-Djava.security.properties=%s/security.properties -javaagent:%s/jmx/jmx_prometheus_javaagent.jar=%d:%s/jmx/config.yaml",
 				kafkav1alpha1.KubedoopConfigDir, kafkav1alpha1.KubedoopRoot, kafkav1alpha1.MetricsPort, kafkav1alpha1.KubedoopRoot),
 		},
 	}
 
-	if d.resourceSpec != nil && d.resourceSpec.Memory != nil && d.resourceSpec.Memory.Limit != nil {
-		memoryLimit := *d.resourceSpec.Memory.Limit
+	if d.resourceSpec != nil && d.resourceSpec.Memory != nil {
+		memoryLimit := d.resourceSpec.Memory.Limit
 		heap := fmt.Sprintf("-Xmx%dm", int(util.QuantityToMB(memoryLimit)*0.8))
 		envs = append(envs, corev1.EnvVar{
-			Name:  common.EnvKafkaHeapOpts,
+			Name:  EnvKafkaHeapOpts,
 			Value: heap,
 		})
 	}
@@ -103,10 +102,6 @@ func (d *KafkaContainerBuilder) ResourceRequirements() corev1.ResourceRequiremen
 func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	mounts := []corev1.VolumeMount{
 		{
-			Name:      kafkav1alpha1.KubedoopTmpDirName,
-			MountPath: kafkav1alpha1.KubedoopTmpDir,
-		},
-		{
 			Name:      kafkav1alpha1.KubedoopKafkaDataDirName,
 			MountPath: kafkav1alpha1.KubedoopDataDir,
 		},
@@ -121,6 +116,14 @@ func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
 		{
 			Name:      kafkav1alpha1.KubedoopLogConfigDirName,
 			MountPath: kafkav1alpha1.KubedoopLogConfigDir,
+		},
+		{
+			Name:      kafkav1alpha1.KubedoopListenerBroker,
+			MountPath: kafkav1alpha1.KubedoopListenerBrokerDir,
+		},
+		{
+			Name:      kafkav1alpha1.KubedoopListenerBootstrap,
+			MountPath: kafkav1alpha1.KubedoopListenerBootstrapDir,
 		},
 	}
 	return mounts
@@ -154,18 +157,7 @@ func (d *KafkaContainerBuilder) ReadinessProbe() *corev1.Probe {
 
 // ContainerPorts  make container ports of data node
 func (d *KafkaContainerBuilder) ContainerPorts() []corev1.ContainerPort {
-	return []corev1.ContainerPort{
-		{
-			Name:          d.KafkaTlsSecurity.ClientPortName(),
-			ContainerPort: int32(d.KafkaTlsSecurity.ClientPort()),
-			Protocol:      corev1.ProtocolTCP,
-		},
-		{
-			Name:          kafkav1alpha1.MetricsPortName,
-			ContainerPort: kafkav1alpha1.MetricsPort,
-			Protocol:      corev1.ProtocolTCP,
-		},
-	}
+	return KafkaContainerPorts(d.KafkaTlsSecurity)
 }
 
 func (d *KafkaContainerBuilder) Command() []string {
@@ -175,7 +167,7 @@ func (d *KafkaContainerBuilder) Command() []string {
 // CommandArgs command args
 // ex: export NODE_PORT=$(cat /kubedoop/tmp/kafka_nodepor
 func (d *KafkaContainerBuilder) CommandArgs() []string {
-	listenerConfig, err := common.GetKafkaListenerConfig(d.namespace, d.KafkaTlsSecurity, d.groupSvcName)
+	listenerConfig, err := GetKafkaListenerConfig(d.namespace, d.KafkaTlsSecurity, d.groupSvcName)
 	if err != nil {
 		return nil
 	}
@@ -185,15 +177,17 @@ func (d *KafkaContainerBuilder) CommandArgs() []string {
 
 	var args []string
 	// trap functions
-	args = append(args, util.CommonBashTrapFunctions)
+	args = append(args, "set -x")
+	// args = append(args, "while true; do sleep 1000; done")
+	args = append(args, opgputil.CommonBashTrapFunctions)
 	// remove vector shut down file command
-	args = append(args, util.RemoveVectorShutdownFileCommand(kafkav1alpha1.KubedoopLogDir))
+	args = append(args, opgputil.RemoveVectorShutdownFileCommand())
 	// kafka execute command
 	args = append(args, "prepare_signal_handlers")
 	args = append(args, d.LaunchCommand(listeners, advertisedListers, lisenerSecurityProtocolMap))
 	args = append(args, "wait_for_termination")
 	// create vector shut down file command
-	args = append(args, util.CreateVectorShutdownFileCommand(kafkav1alpha1.KubedoopLogDir))
+	args = append(args, opgputil.CreateVectorShutdownFileCommand())
 
 	return []string{strings.Join(args, "\n")}
 }

@@ -5,10 +5,10 @@ import (
 
 	"emperror.dev/errors"
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/builder"
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	"github.com/zncdatadev/operator-go/pkg/util"
-	appsv1 "k8s.io/api/apps/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -17,12 +17,11 @@ var vectorLogger = ctrl.Log.WithName("vector")
 
 const ContainerVector = "vector"
 
-func IsVectorEnable(roleLoggingConfig *kafkav1alpha1.BrokersContainerLoggingSpec) bool {
+func IsVectorEnable(roleLoggingConfig *commonsv1alpha1.LoggingSpec) bool {
 	if roleLoggingConfig != nil {
-		return roleLoggingConfig.EnableVectorAgent
+		return *roleLoggingConfig.EnableVectorAgent
 	}
 	return false
-
 }
 
 type VectorConfigParams struct {
@@ -55,21 +54,14 @@ func ExtendConfigMapByVector(ctx context.Context, params VectorConfigParams, dat
 	}
 }
 
-func ExtendWorkloadByVector(
+// GetVectorFactory returns a new vector factory
+// can provide vector container, volumes
+func GetVectorFactory(
 	image *util.Image,
-	logProvider []string,
-	dep *appsv1.StatefulSet,
-	vectorConfigMapName string) {
-	decorator := builder.VectorDecorator{
-		WorkloadObject:           dep,
-		Image:                    image,
-		LogVolumeName:            kafkav1alpha1.KubedoopLogDirName,
-		VectorConfigVolumeName:   kafkav1alpha1.KubedoopConfigDirName,
-		VectorConfigMapName:      vectorConfigMapName,
-		LogProviderContainerName: logProvider,
-	}
-	err := decorator.Decorate()
-	if err != nil {
-		return
-	}
+) *builder.Vector {
+	return builder.NewVector(
+		kafkav1alpha1.KubedoopConfigDirName,
+		kafkav1alpha1.KubedoopLogDirName,
+		image,
+	)
 }

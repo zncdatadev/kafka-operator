@@ -64,7 +64,7 @@ type KafkaTlsSecurity struct {
 }
 
 // NewKafkaTlsSecurity creates a new KafkaTlsSecurity instance
-func NewKafkaTlsSecurity(tlsSpec *kafkav1alpha1.TlsSpec) *KafkaTlsSecurity {
+func NewKafkaTlsSecurity(tlsSpec *kafkav1alpha1.KafkaTlsSpec) *KafkaTlsSecurity {
 	if tlsSpec == nil {
 		return &KafkaTlsSecurity{}
 	}
@@ -167,16 +167,26 @@ func (k *KafkaTlsSecurity) KcatClientSsl(certDirectory string) []string {
 }
 
 // AddVolumeAndVolumeMounts adds required volumes and volume mounts to the pod and container builders
-func (k *KafkaTlsSecurity) AddVolumeAndVolumeMounts(sts *appsv1.StatefulSet) {
+func (k *KafkaTlsSecurity) AddVolumeAndVolumeMounts(sts *appsv1.StatefulSet, requestLifeTime string) {
 	kafkaContainer := k.getContainer(sts.Spec.Template.Spec.Containers, "kafka")
 	if tlsServerSecretClass := k.TlsServerSecretClass(); tlsServerSecretClass != "" {
 		// cbKcatProber.AddVolumeMount(KubedoopTLSCertServerDirName, KubedoopTLSCertServerDir) todo
-		k.AddVolume(sts, CreateTlsKeystoreVolume(KubedoopTLSKeyStoreServerDirName, tlsServerSecretClass, k.SSLStorePassword))
+		k.AddVolume(sts, CreateTlsKeystoreVolume(
+			KubedoopTLSKeyStoreServerDirName,
+			tlsServerSecretClass,
+			k.SSLStorePassword,
+			requestLifeTime,
+		))
 		k.AddVolumeMount(kafkaContainer, KubedoopTLSKeyStoreServerDirName, KubedoopTLSKeyStoreServerDir)
 	}
 
 	if tlsInternalSecretClass := k.TlsInternalSecretClass(); tlsInternalSecretClass != "" {
-		k.AddVolume(sts, CreateTlsKeystoreVolume(KubedoopTLSKeyStoreInternalDirName, tlsInternalSecretClass, k.SSLStorePassword))
+		k.AddVolume(sts, CreateTlsKeystoreVolume(
+			KubedoopTLSKeyStoreInternalDirName,
+			tlsInternalSecretClass,
+			k.SSLStorePassword,
+			requestLifeTime,
+		))
 		k.AddVolumeMount(kafkaContainer, KubedoopTLSKeyStoreInternalDirName, KubedoopTLSKeyStoreInternalDir)
 	}
 }
@@ -240,10 +250,20 @@ func (k *KafkaTlsSecurity) ConfigSettings() map[string]string {
 }
 
 // // CreateTlsKeystoreVolume creates ephemeral volumes to mount the SecretClass into the Pods as keystores
-func CreateTlsKeystoreVolume(volumeName, secretClass, sslStorePassword string) corev1.Volume {
+func CreateTlsKeystoreVolume(volumeName, secretClass, sslStorePassword, requestedSecretLifeTime string) corev1.Volume {
 	builder := util.SecretVolumeBuilder{VolumeName: volumeName}
-	svcScope := fmt.Sprintf("%s=%s", constants.ServiceScope, "kafkacluster-sample")
-	secretScopes := []string{svcScope, string(constants.PodScope), string(constants.NodeScope)}
+
+	// listener-volume=listener-broker,listener-volume=listener-bootstrap
+	secretScopes := []string{
+		string(constants.ListenerVolumeScope) + "=" + string(kafkav1alpha1.KubedoopListenerBroker),
+		string(constants.ListenerVolumeScope) + "=" + string(kafkav1alpha1.KubedoopListenerBootstrap),
+		string(constants.PodScope),
+		string(constants.NodeScope),
+	}
+	if requestedSecretLifeTime != "" {
+		builder.AddAnnotation(constants.AnnotationSecretCertLifeTime, requestedSecretLifeTime)
+	}
+
 	builder.SetAnnotations(map[string]string{
 		constants.AnnotationSecretsClass:  secretClass,
 		constants.AnnotationSecretsScope:  strings.Join(secretScopes, constants.CommonDelimiter),

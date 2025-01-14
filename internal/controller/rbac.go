@@ -1,73 +1,46 @@
 package controller
 
 import (
-	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
-	"github.com/zncdatadev/kafka-operator/internal/common"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
 
-var serviceAccountName = func(instanceName string) string { return common.CreateServiceAccountName(instanceName) }
-var roleName = "kafka-role"
-var roleBindingName = "kafka-rolebinding"
+func NewServiceAccountReconciler(
+	client *client.Client,
+	saName string,
+	opts ...builder.Option,
+) reconciler.ResourceReconciler[*builder.GenericServiceAccountBuilder] {
 
-// NewServiceAccount new a ServiceAccountReconciler
-func NewServiceAccount(
-	scheme *runtime.Scheme,
-	instance *kafkav1alpha1.KafkaCluster,
-	client client.Client,
-	mergedLabels map[string]string,
-	mergedCfg any,
-) *common.GenericServiceAccountReconciler[*kafkav1alpha1.KafkaCluster, any] {
-	return common.NewServiceAccount[*kafkav1alpha1.KafkaCluster](scheme, instance, client, mergedLabels, mergedCfg,
-		serviceAccountName(instance.GetName()), instance.GetNamespace())
-}
-
-// NewRole new a ClusterRoleReconciler
-func NewRole(
-	scheme *runtime.Scheme,
-	instance *kafkav1alpha1.KafkaCluster,
-	client client.Client,
-	mergedLabels map[string]string,
-	mergedCfg *kafkav1alpha1.BrokersRoleGroupSpec,
-) *common.GenericRoleReconciler[*kafkav1alpha1.KafkaCluster, any] {
-	return common.NewRole[*kafkav1alpha1.KafkaCluster](
-		scheme,
-		instance,
+	b := builder.NewGenericServiceAccountBuilder(
 		client,
-		"",
-		mergedLabels,
-		mergedCfg,
-		common.RbacRole,
-		roleName,
-		[]common.VerbType{common.Get, common.List, common.Watch},
-		[]string{""},
-		[]common.ResourceType{common.Services},
-		instance.Namespace,
+		saName,
+		opts...,
 	)
+	return reconciler.NewGenericResourceReconciler(client, b)
 }
 
-// NewRoleBinding new a ClusterRoleBindingReconciler
-func NewRoleBinding(
-	scheme *runtime.Scheme,
-	instance *kafkav1alpha1.KafkaCluster,
-	client client.Client,
-	mergedLabels map[string]string,
-	mergedCfg *kafkav1alpha1.BrokersRoleGroupSpec,
-) *common.GenericRoleBindingReconciler[*kafkav1alpha1.KafkaCluster, any] {
-	return common.NewRoleBinding[*kafkav1alpha1.KafkaCluster](
-		scheme,
-		instance,
-		client,
-		"",
-		mergedLabels,
-		mergedCfg,
+// Note: enable in future,
 
-		"",
-		common.RoleBinding,
-		roleBindingName,
-		roleName,
-		serviceAccountName(instance.GetName()),
-		instance.GetNamespace(),
-	)
-}
+// func NewClusterRoleReconciler(
+// 	client *client.Client,
+// 	name string,
+// 	opts ...builder.Option,
+// ) reconciler.ResourceReconciler[*builder.GenericClusterRoleBuilder] {
+// 	b := builder.NewGenericClusterRoleBuilder(client, name)
+// 	return reconciler.NewGenericResourceReconciler(client, b)
+// }
+
+// func NewClusterRoleBindingReconciler(
+// 	client *client.Client,
+// 	name string,
+// 	opts ...builder.Option,
+// ) reconciler.ResourceReconciler[*builder.GenericRoleBindingBuilder] {
+
+// 	builder := builder.NewGenericRoleBindingBuilder(
+// 		client,
+// 		name,
+// 		opts...,
+// 	)
+// 	return reconciler.NewGenericResourceReconciler(client, builder)
+// }
