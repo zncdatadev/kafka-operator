@@ -2,63 +2,137 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
-	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
-	"github.com/zncdatadev/kafka-operator/internal/common"
-	"github.com/zncdatadev/kafka-operator/internal/controller/svc"
 	"github.com/zncdatadev/kafka-operator/internal/security"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const discoveryKey = "KAFKA"
+const (
+	KafkaDiscoveryKey = "KAFKA"
 
-// const nodeDiscoveryKey = "KAFKA_NODE"
+	LabelListenerBootstrap      = "app.kubernetes.io/listener-bootstrap"
+	LabelListenerBootstrapValue = "true"
+)
 
-type Discovery struct {
-	common.GeneralResourceStyleReconciler[*kafkav1alpha1.KafkaCluster, any]
-	*security.KafkaTlsSecurity
+type DiscoveryBuilder struct {
+	builder.ConfigMapBuilder
+	kafkaSecurity *security.KafkaTlsSecurity
+	isNodePort    bool
 }
 
-func NewDiscovery(
-	scheme *runtime.Scheme,
-	instance *kafkav1alpha1.KafkaCluster,
-	client client.Client,
-	tlsSecurity *security.KafkaTlsSecurity,
-) *Discovery {
-	var mergedCfg any
-	d := &Discovery{
-		GeneralResourceStyleReconciler: *common.NewGeneraResourceStyleReconciler(
-			scheme,
-			instance,
-			client,
-			"",
-			nil,
-			mergedCfg,
-		),
-		KafkaTlsSecurity: tlsSecurity,
+func NewKafkaDiscoveryReconciler(
+	ctx context.Context,
+	client *client.Client,
+	kafkaTlsSecurity *security.KafkaTlsSecurity,
+) reconciler.ResourceReconciler[builder.ConfigBuilder] {
+	builder := NewKafkaDiscoveryBuilder(client, kafkaTlsSecurity, false)
+	return reconciler.NewGenericResourceReconciler(client, builder)
+}
+
+func NewKafkaDiscoveryNodePortReconciler(
+	ctx context.Context,
+	client *client.Client,
+	kafkaTlsSecurity *security.KafkaTlsSecurity,
+) reconciler.ResourceReconciler[builder.ConfigBuilder] {
+	builder := NewKafkaDiscoveryBuilder(client, kafkaTlsSecurity, true)
+	return reconciler.NewGenericResourceReconciler(client, builder)
+}
+
+func NewKafkaDiscoveryBuilder(
+	client *client.Client,
+	kafkaSecurity *security.KafkaTlsSecurity,
+	isNodePort bool,
+) builder.ConfigBuilder {
+	name := client.GetOwnerName()
+	if isNodePort {
+		name = fmt.Sprintf("%s-nodeport", name)
 	}
-	return d
+
+	return &DiscoveryBuilder{
+		ConfigMapBuilder: *builder.NewConfigMapBuilder(
+			client,
+			name,
+			func(o *builder.Options) {
+				o.Labels = client.OwnerReference.GetLabels()
+			},
+		),
+		kafkaSecurity: kafkaSecurity,
+		isNodePort:    isNodePort,
+	}
 }
 
-// Build implements the ResourceBuilder interface
-func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
-	clusterDomain := d.Instance.Spec.ClusterConfig.ClusterDomain
-	clusterSvcName := svc.CreateClusterServiceName(d.Instance.GetName())
-	dnsDomain := common.CreateDnsDomain(clusterSvcName, d.Instance.Namespace, clusterDomain, int32(d.KafkaTlsSecurity.ClientPort()))
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.Instance.GetName(),
-			Namespace: d.Instance.Namespace,
-			Labels:    d.Labels,
-		},
-		Data: map[string]string{
-			discoveryKey: dnsDomain,
-			// nodeDiscoveryKey:
-		},
-	}, nil
+func (b *DiscoveryBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
+	portName := b.kafkaSecurity.ClientPortName()
+
+	listenerList := &listenerv1alpha1.ListenerList{}
+	err := b.Client.Client.List(
+		ctx,
+		listenerList,
+		ctrlclient.MatchingLabels{LabelListenerBootstrap: LabelListenerBootstrapValue},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	hosts, err := b.listenerHosts(listenerList, portName)
+	if err != nil {
+		return nil, err
+	}
+
+	bootstrapServers := b.makeBootstrapServers(hosts)
+	b.AddItem(KafkaDiscoveryKey, bootstrapServers)
+
+	return b.GetObject(), nil
 }
 
-// get nodes
+type HostPort struct {
+	Host string
+	Port int32
+}
+
+func (b *DiscoveryBuilder) listenerHosts(listenerList *listenerv1alpha1.ListenerList, portName string) ([]HostPort, error) {
+	var result []HostPort
+	for _, listener := range listenerList.Items {
+		// TODO: Status refactor to user pointer
+		if listener.Status.IngressAddresses == nil {
+			continue
+		}
+		for _, addr := range listener.Status.IngressAddresses {
+			port, ok := addr.Ports[portName]
+			if !ok {
+				return nil, &Error{msg: fmt.Sprintf("no service port with name %s", portName)}
+			}
+			result = append(result, HostPort{
+				Host: addr.Address,
+				Port: port,
+			})
+		}
+	}
+	return result, nil
+}
+
+func (b *DiscoveryBuilder) makeBootstrapServers(hosts []HostPort) string {
+	var servers []string
+	for _, h := range hosts {
+		servers = append(servers, fmt.Sprintf("%s:%d", h.Host, h.Port))
+	}
+	return strings.Join(servers, ",")
+}
+
+type Error struct {
+	msg string
+	err error
+}
+
+func (e *Error) Error() string {
+	if e.err != nil {
+		return fmt.Sprintf("%s: %v", e.msg, e.err)
+	}
+	return e.msg
+}

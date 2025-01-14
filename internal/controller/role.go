@@ -2,165 +2,142 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/go-logr/logr"
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
-	"github.com/zncdatadev/kafka-operator/internal/common"
-	"github.com/zncdatadev/kafka-operator/internal/controller/svc"
 	"github.com/zncdatadev/kafka-operator/internal/security"
-	"k8s.io/apimachinery/pkg/runtime"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// role server reconciler
+var logger = ctrl.Log.WithName("role-reconciler")
 
-type Role struct {
-	common.BaseRoleReconciler[*kafkav1alpha1.KafkaCluster]
-}
+func NewBrokerReconciler(
+	client *client.Client,
+	roleInfo reconciler.RoleInfo,
+	spec *kafkav1alpha1.BrokersSpec,
+	image *opgoutil.Image,
+	clusterConfig *kafkav1alpha1.ClusterConfigSpec,
+	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
+	kafkaTlsSecurity *security.KafkaTlsSecurity,
+) *BrokerReconciler {
 
-func NewRoleBroker(
-	scheme *runtime.Scheme,
-	instance *kafkav1alpha1.KafkaCluster,
-	client client.Client,
-	log logr.Logger) *Role {
-	r := &Role{
-		BaseRoleReconciler: common.BaseRoleReconciler[*kafkav1alpha1.KafkaCluster]{
-			Scheme:   scheme,
-			Instance: instance,
-			Client:   client,
-			Log:      log,
-		},
-	}
-	r.Labels = r.GetLabels()
-	r.Role = r.RoleName()
-	return r
-}
+	stopped := clusterOperation != nil && clusterOperation.Stopped
 
-func (r *Role) RoleName() common.Role {
-	return common.Broker
-}
-
-func (r *Role) CacheRoleGroupConfig() {
-	roleSpec := r.Instance.Spec.Brokers
-	groups := roleSpec.RoleGroups
-	// merge all the role-group cfg
-	// and cache it
-	for groupName, groupSpec := range groups {
-		mergedCfg := MergeConfig(roleSpec, groupSpec)
-		cacheKey := common.CreateRoleCfgCacheKey(r.Instance.GetName(), r.Role, groupName)
-		common.MergedCache.Set(cacheKey, mergedCfg)
+	return &BrokerReconciler{
+		BaseRoleReconciler: *reconciler.NewBaseRoleReconciler(
+			client,
+			stopped,
+			roleInfo,
+			spec,
+		),
+		image:            image,
+		clusterConfig:    clusterConfig,
+		clusterOperation: clusterOperation,
+		kafkaTlsSecurity: kafkaTlsSecurity,
 	}
 }
 
-func (r *Role) ReconcileRole(ctx context.Context) (ctrl.Result, error) {
-	roleCfg := r.Instance.Spec.Brokers
-	// role pdb
-	if roleCfg.Config != nil && roleCfg.Config.PodDisruptionBudget != nil {
-		pdb := common.NewReconcilePDB(r.Client, r.Scheme, r.Instance, r.GetLabels(), string(r.RoleName()),
-			pdbCfg(roleCfg.Config.PodDisruptionBudget))
-		res, err := pdb.ReconcileResource(ctx, common.NewSingleResourceBuilder(pdb))
+type BrokerReconciler struct {
+	reconciler.BaseRoleReconciler[*kafkav1alpha1.BrokersSpec]
+
+	clusterConfig    *kafkav1alpha1.ClusterConfigSpec
+	clusterOperation *commonsv1alpha1.ClusterOperationSpec
+	image            *opgoutil.Image
+	kafkaTlsSecurity *security.KafkaTlsSecurity
+}
+
+func (r *BrokerReconciler) RegisterResources(ctx context.Context) error {
+	for name, roleGroup := range r.Spec.RoleGroups {
+		mergedConfig, err := opgoutil.MergeObject(r.Spec.Config, roleGroup.Config)
 		if err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
-		if res.RequeueAfter > 0 {
-			return res, nil
-		}
-	}
-	// reconciler groups
-	for name := range roleCfg.RoleGroups {
-		groupReconciler := NewRoleGroupReconciler(r.Scheme, r.Instance, r.Client, name, r.GetLabels(), r.Log)
-		res, err := groupReconciler.ReconcileGroup(ctx)
+		overrides, err := opgoutil.MergeObject(r.Spec.OverridesSpec, roleGroup.OverridesSpec)
 		if err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
-		if res.RequeueAfter > 0 {
-			return res, nil
+
+		// merge default config to the user provided config
+		if overrides == nil {
+			overrides = &commonsv1alpha1.OverridesSpec{}
+		}
+		MergeFromUserConfig(mergedConfig, overrides, r.GetClusterName())
+
+		info := &reconciler.RoleGroupInfo{
+			RoleInfo:      r.RoleInfo,
+			RoleGroupName: name,
+		}
+		reconcilers, err := r.RegisterResourceWithRoleGroup(
+			ctx,
+			roleGroup.Replicas,
+			info,
+			overrides,
+			mergedConfig,
+		)
+		if err != nil {
+			return err
+		}
+
+		for _, reconciler := range reconcilers {
+			r.AddResource(reconciler)
+			logger.Info("registered resource", "role", r.GetName(), "roleGroup", name, "reconciler", reconciler.GetName())
 		}
 	}
-	return ctrl.Result{}, nil
+	return nil
 }
 
-// RoleGroup master role group reconcile
-type RoleGroup struct {
-	common.BaseRoleGroupReconciler[*kafkav1alpha1.KafkaCluster]
-}
+func (r *BrokerReconciler) RegisterResourceWithRoleGroup(
+	ctx context.Context,
+	replicas int32,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	overrides *commonsv1alpha1.OverridesSpec,
+	brokerConfig *kafkav1alpha1.BrokersConfigSpec,
+) ([]reconciler.Reconciler, error) {
 
-func NewRoleGroupReconciler(
-	scheme *runtime.Scheme,
-	instance *kafkav1alpha1.KafkaCluster,
-	client client.Client,
-	groupName string,
-	roleLabels map[string]string,
-	log logr.Logger) *RoleGroup {
-	r := &RoleGroup{
-		BaseRoleGroupReconciler: common.BaseRoleGroupReconciler[*kafkav1alpha1.KafkaCluster]{
-			Scheme:     scheme,
-			Instance:   instance,
-			Client:     client,
-			GroupName:  groupName,
-			RoleLabels: roleLabels,
-			Log:        log,
-		},
-	}
-	r.RegisterResource()
-	return r
-}
+	var reconcilers = make([]reconciler.Reconciler, 0)
 
-func (m *RoleGroup) RegisterResource() {
-	cfg := m.MergeGroupConfigSpec()
-	lables := m.MergeLabels(cfg)
-	mergedCfg := cfg.(*kafkav1alpha1.BrokersRoleGroupSpec)
-	pdbSpec := mergedCfg.Config.PodDisruptionBudget
+	// svc
+	svc := NewRoleGroupService(r.Client, roleGroupInfo)
+	reconcilers = append(reconcilers, svc)
 
-	tlsSecurity := security.NewKafkaTlsSecurity(m.Instance.Spec.ClusterConfig.Tls)
+	// configmap
+	cm := NewKafkaConfigmapReconciler(
+		ctx,
+		r.Client,
+		r.clusterConfig,
+		r.kafkaTlsSecurity,
+		roleGroupInfo,
+		overrides,
+		brokerConfig.RoleGroupConfigSpec,
+	)
+	reconcilers = append(reconcilers, cm)
 
-	// logDataBuilder := &LogDataBuilder{cfg: mergedCfg}
+	// statefulset
+	sts := NewStatefulSetReconciler(
+		ctx,
+		r.Client,
+		r.image,
+		&replicas,
+		r.clusterConfig,
+		r.clusterOperation,
+		roleGroupInfo,
+		brokerConfig,
+		overrides,
+		r.kafkaTlsSecurity,
+	)
+	reconcilers = append(reconcilers, sts)
 
-	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, tlsSecurity)
-	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, tlsSecurity)
-	groupSvc := svc.NewGroupServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, tlsSecurity)
-	podSvc := svc.NewPodServiceReconciler(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, tlsSecurity)
-	m.Reconcilers = []common.ResourceReconciler{cm, statefulSet, groupSvc, podSvc}
-	if pdbSpec != nil {
-		pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbCfg(pdbSpec))
-		m.Reconcilers = append(m.Reconcilers, pdb)
-	}
-}
+	// role group listener
+	listener := NewRoleGroupBootstrapListenerReconciler(
+		r.Client,
+		brokerConfig.BootstrapListenerClass,
+		roleGroupInfo,
+		r.kafkaTlsSecurity,
+	)
+	reconcilers = append(reconcilers, listener)
 
-func (m *RoleGroup) MergeGroupConfigSpec() any {
-	cacheKey := common.CreateRoleCfgCacheKey(m.Instance.GetName(), common.Broker, m.GroupName)
-	if cfg, ok := common.MergedCache.Get(cacheKey); ok {
-		return cfg
-	}
-	panic(fmt.Sprintf("role group config not found: %s, key: %s", m.GroupName, cacheKey))
-}
-
-func (m *RoleGroup) MergeLabels(mergedCfg any) map[string]string {
-	mergedMasterCfg := mergedCfg.(*kafkav1alpha1.BrokersRoleGroupSpec)
-	return m.AppendLabels(mergedMasterCfg.Config.NodeSelector)
-}
-
-// MergeConfig merge the role's config into the role group's config
-func MergeConfig(masterRole *kafkav1alpha1.BrokersSpec,
-	group *kafkav1alpha1.BrokersRoleGroupSpec) *kafkav1alpha1.BrokersRoleGroupSpec {
-	copiedRoleGroup := group.DeepCopy()
-	// Merge the role into the role group.
-	// if the role group has a config, and role group not has a config, will
-	// merge the role's config into the role group's config.
-	common.MergeObjects(copiedRoleGroup, masterRole, []string{"RoleGroups"})
-
-	// merge the role's config into the role group's config
-	if masterRole.Config != nil && copiedRoleGroup.Config != nil {
-		common.MergeObjects(copiedRoleGroup.Config, masterRole.Config, []string{})
-	}
-	return copiedRoleGroup
-}
-
-func pdbCfg(pdbSpec *kafkav1alpha1.PodDisruptionBudgetSpec) *common.PdbConfig {
-	return &common.PdbConfig{
-		MaxUnavailable: pdbSpec.MaxUnavailable,
-		MinAvailable:   pdbSpec.MinAvailable,
-	}
+	return reconcilers, nil
 }

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: kafkacluster-sample-default-broker
+  name: kafkacluster-sample-broker-default
 status:
   replicas: 3
   availableReplicas: 3

@@ -1,8 +1,8 @@
-package common
+package controller
 
 const (
-	FetchNodePort ContainerComponent = "fetch-node-port"
-	Kafka         ContainerComponent = "kafka"
+	Kafka  ContainerComponent = "kafka"
+	Vector ContainerComponent = "vector"
 )
 
 // mount
