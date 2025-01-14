@@ -31,7 +31,7 @@ data:
       exit 1
     fi
 
-    if /kubedoop/kafka/bin/kafka-topics.sh --list --topic "$TOPIC" --bootstrap-server "$KAFKA" --command-config --timeout-ms 30000 /tmp/client.config | grep "$TOPIC"
+    if /kubedoop/kafka/bin/kafka-topics.sh --list --topic "$TOPIC" --bootstrap-server "$KAFKA" --command-config /tmp/client.config | grep "$TOPIC"
     then
       echo "[SUCCESS] Secure client topic read!"
     else
