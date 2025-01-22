@@ -118,7 +118,7 @@ func defaultAffinity(role string, crName string) *corev1.Affinity {
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								constants.LabelKubernetesInstance:  crName,
-								constants.LabelKubernetesComponent: string(role),
+								constants.LabelKubernetesComponent: role,
 							},
 						},
 						TopologyKey: corev1.LabelHostname,

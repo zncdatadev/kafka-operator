@@ -64,7 +64,10 @@ func (r *BrokerReconciler) RegisterResources(ctx context.Context) error {
 		if overrides == nil {
 			overrides = &commonsv1alpha1.OverridesSpec{}
 		}
-		MergeFromUserConfig(mergedConfig, overrides, r.GetClusterName())
+		err = MergeFromUserConfig(mergedConfig, overrides, r.GetClusterName())
+		if err != nil {
+			return err
+		}
 
 		info := &reconciler.RoleGroupInfo{
 			RoleInfo:      r.RoleInfo,

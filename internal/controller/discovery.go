@@ -118,7 +118,7 @@ func (b *DiscoveryBuilder) listenerHosts(listenerList *listenerv1alpha1.Listener
 }
 
 func (b *DiscoveryBuilder) makeBootstrapServers(hosts []HostPort) string {
-	var servers []string
+	var servers = make([]string, 0, len(hosts))
 	for _, h := range hosts {
 		servers = append(servers, fmt.Sprintf("%s:%d", h.Host, h.Port))
 	}
