@@ -119,7 +119,7 @@ func (b *KafkaConfigmapBuilder) Build(ctx context.Context) (ctrlclient.Object, e
 	return b.GetObject(), nil
 }
 
-// secruity properties
+// security properties
 func (b *KafkaConfigmapBuilder) buildSecurityProperties() (string, error) {
 	if b.overrides != nil && b.overrides.ConfigOverrides != nil {
 		if data, ok := b.overrides.ConfigOverrides[SecurityPropertiesFilename]; ok {
@@ -134,7 +134,7 @@ func (b *KafkaConfigmapBuilder) buildSecurityProperties() (string, error) {
 func (b *KafkaConfigmapBuilder) buildServerProperties() (string, error) {
 	data := make(map[string]string)
 	if b.overrides != nil && b.overrides.ConfigOverrides != nil {
-		data, _ = b.overrides.ConfigOverrides[ServerPropertiesFilename]
+		data = b.overrides.ConfigOverrides[ServerPropertiesFilename]
 	}
 
 	maps.Copy(data, b.kafkaSecurity.ConfigSettings()) // tls
