@@ -22,7 +22,6 @@ spec:
     command:
     - /bin/sh
     args:
-
     - -c
     - bash /kubedoop/test/client-access.sh
     resources:

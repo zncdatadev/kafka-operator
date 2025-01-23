@@ -1,13 +1,42 @@
-package common
+package controller
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
-	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/pkg"
 	"github.com/zncdatadev/kafka-operator/internal/security"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+
+	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 )
+
+func NewRoleGroupBootstrapListenerReconciler(
+	client *client.Client,
+	bootstrapListenerClass string,
+	info *reconciler.RoleGroupInfo,
+	kafkaTlsSecurity *security.KafkaTlsSecurity,
+) reconciler.ResourceReconciler[pkg.ListenerBuidler] {
+
+	builder := pkg.NewListenerBuilder(
+		client,
+		BootstrapListenerName(info),
+		bootstrapListenerClass,
+
+		func(lbo *pkg.ListenerBuilderOptions) {
+			lbo.ContainerPorts = KafkaContainerPorts(kafkaTlsSecurity)
+			lbo.PublishNotReadyAddresses = true
+			lbo.ExtraPodSelectorLabels = map[string]string{
+				LabelListenerBootstrap: LabelListenerBootstrapValue, // "app.kubernetes.io/listener-bootstrap: true", add this label for search in discovery
+			}
+		},
+	)
+
+	return reconciler.NewGenericResourceReconciler(client, builder)
+}
 
 const (
 	LISTENER_LOCAL_ADDRESS = "0.0.0.0"
@@ -77,7 +106,11 @@ func (config *KafkaListenerConfig) ListenerSecurityProtocolMapString() string {
 	return strings.Join(protocolMap, ",")
 }
 
-func GetKafkaListenerConfig(namespace string, kafkaSecurity *security.KafkaTlsSecurity, objectName string) (*KafkaListenerConfig, error) {
+func GetKafkaListenerConfig(
+	namespace string,
+	kafkaSecurity *security.KafkaTlsSecurity,
+	objectName string,
+) (*KafkaListenerConfig, error) {
 	podFqdn := podFqdn(namespace, objectName)
 
 	var listeners []KafkaListener
@@ -92,8 +125,8 @@ func GetKafkaListenerConfig(namespace string, kafkaSecurity *security.KafkaTlsSe
 		})
 		advertisedListeners = append(advertisedListeners, KafkaListener{
 			Name: ClientAuth,
-			Host: LISTENER_NODE_ADDRESS,
-			Port: nodePortCmd(kafkav1alpha1.KubedoopTmpDir),
+			Host: nodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: nodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
 		})
 		listenerSecurityProtocolMap[ClientAuth] = Ssl
 	} else if kafkaSecurity.TlsServerSecretClass() != "" {
@@ -104,8 +137,8 @@ func GetKafkaListenerConfig(namespace string, kafkaSecurity *security.KafkaTlsSe
 		})
 		advertisedListeners = append(advertisedListeners, KafkaListener{
 			Name: Client,
-			Host: LISTENER_NODE_ADDRESS,
-			Port: nodePortCmd(kafkav1alpha1.KubedoopTmpDir),
+			Host: nodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: nodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
 		})
 		listenerSecurityProtocolMap[Client] = Ssl
 	} else {
@@ -116,8 +149,8 @@ func GetKafkaListenerConfig(namespace string, kafkaSecurity *security.KafkaTlsSe
 		})
 		advertisedListeners = append(advertisedListeners, KafkaListener{
 			Name: Client,
-			Host: LISTENER_NODE_ADDRESS,
-			Port: nodePortCmd(kafkav1alpha1.KubedoopTmpDir),
+			Host: nodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: nodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
 		})
 		listenerSecurityProtocolMap[Client] = Plaintext
 	}
@@ -155,8 +188,14 @@ func GetKafkaListenerConfig(namespace string, kafkaSecurity *security.KafkaTlsSe
 	}, nil
 }
 
-func nodePortCmd(directory string) string {
-	return fmt.Sprintf("$(cat %s/%s)", directory, NodePortFileName)
+func nodeAddressCmd(directory string) string {
+	filePath := path.Join(directory, "default-address/address")
+	return fmt.Sprintf("$(cat %s)", filePath)
+}
+
+func nodePortCmd(directory string, portName string) string {
+	filePath := path.Join(directory, "default-address/ports", portName)
+	return fmt.Sprintf("$(cat %s)", filePath)
 }
 
 func podFqdn(namespace string, objectName string) string {

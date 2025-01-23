@@ -68,7 +68,7 @@ spec:
               value: ($namespace)
           content: |
             export KAFKA_IMAGE=$(
-            kubectl -n $NAMESPACE get statefulset kafkacluster-sample-default-broker \
+            kubectl -n $NAMESPACE get statefulset kafkacluster-sample-broker-default \
             -o jsonpath='{.spec.template.spec.containers[?(.name=="kafka")].image}'
             )
             export KAFKA_DISCOVERY=$(

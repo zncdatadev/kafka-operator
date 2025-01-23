@@ -20,6 +20,8 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 )
 
 const (
@@ -48,18 +50,20 @@ const (
 	ImageTag        = "3.7.1-kubedoop0.0.0-dev"
 	ImagePullPolicy = corev1.PullIfNotPresent
 
-	KubedoopKafkaDataDirName = "data" // kafka log dirs
-	KubedoopLogConfigDirName = "log-config"
-	KubedoopConfigDirName    = "config"
-	KubedoopTmpDirName       = "tmp"
-	KubedoopLogDirName       = "log"
+	KubedoopKafkaDataDirName  = "data" // kafka log dirs
+	KubedoopLogConfigDirName  = "log-config"
+	KubedoopConfigDirName     = "config"
+	KubedoopLogDirName        = "log"
+	KubedoopListenerBroker    = "listener-broker"
+	KubedoopListenerBootstrap = "listener-bootstrap"
 
-	KubedoopRoot         = "/kubedoop"
-	KubedoopTmpDir       = KubedoopRoot + "/tmp"
-	KubedoopDataDir      = KubedoopRoot + "/data"
-	KubedoopConfigDir    = KubedoopRoot + "/config"
-	KubedoopLogConfigDir = KubedoopRoot + "/log_config"
-	KubedoopLogDir       = KubedoopRoot + "/log"
+	KubedoopRoot                 = "/kubedoop"
+	KubedoopDataDir              = KubedoopRoot + "/data"
+	KubedoopConfigDir            = KubedoopRoot + "/config"
+	KubedoopLogConfigDir         = KubedoopRoot + "/log_config"
+	KubedoopLogDir               = KubedoopRoot + "/log"
+	KubedoopListenerBrokerDir    = KubedoopRoot + "/listener-broker"
+	KubedoopListenerBootstrapDir = KubedoopRoot + "/listener-bootstrap"
 )
 
 // +kubebuilder:object:root=true
@@ -91,20 +95,20 @@ type KafkaClusterSpec struct {
 	// +kubebuilder:validation:Required
 	ClusterConfig *ClusterConfigSpec `json:"clusterConfig,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	ClusterOperation *commonsv1alpha1.ClusterOperationSpec `json:"clusterOperation,omitempty"`
+
 	// +kubebuilder:validation:Required
 	Brokers *BrokersSpec `json:"brokers,omitempty"`
 }
 
 type ClusterConfigSpec struct {
 	// +kubebuilder:validation:Optional
-	Service *ServiceSpec `json:"service,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:="cluster.local"
 	ClusterDomain string `json:"clusterDomain,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	Tls *TlsSpec `json:"tls,omitempty"`
+	Tls *KafkaTlsSpec `json:"tls,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	VectorAggregatorConfigMapName string `json:"vectorAggregatorConfigMapName,omitempty"`
@@ -113,7 +117,7 @@ type ClusterConfigSpec struct {
 	ZookeeperConfigMapName string `json:"zookeeperConfigMapName,omitempty"`
 }
 
-type TlsSpec struct {
+type KafkaTlsSpec struct {
 	// The SecretClass to use for internal broker communication. Use mutual verification between brokers (mandatory).
 	// This setting controls: - Which cert the brokers should use to authenticate themselves against other brokers -
 	// Which ca.crt to use when validating the other brokers Defaults to tls
@@ -154,16 +158,9 @@ type BrokersSpec struct {
 	RoleGroups map[string]*BrokersRoleGroupSpec `json:"roleGroups,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	PodDisruptionBudget *PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
+	Roleconfig *commonsv1alpha1.RoleConfigSpec `json:"roleconfig,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	CliOverrides []string `json:"cliOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ConfigOverrides *ConfigOverridesSpec `json:"configOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
+	*commonsv1alpha1.OverridesSpec `json:",inline"`
 }
 
 type BrokersRoleGroupSpec struct {
@@ -174,89 +171,30 @@ type BrokersRoleGroupSpec struct {
 	// +kubebuilder:validation:Required
 	Config *BrokersConfigSpec `json:"config,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	CliOverrides []string `json:"cliOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ConfigOverrides *ConfigOverridesSpec `json:"configOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
+	*commonsv1alpha1.OverridesSpec `json:",inline"`
 }
 
 type BrokersConfigSpec struct {
-	// +kubebuilder:validation:Optional
-	Resources *ResourcesSpec `json:"resources,omitempty"`
+	*commonsv1alpha1.RoleGroupConfigSpec `json:",inline"`
 
+	// The ListenerClass used for connecting to brokers. Should use a direct connection ListenerClass to minimize cost
+	// and minimize performance overhead (such as `cluster-internal` or `external-unstable`)
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:="cluster-internal"
-	ListenerClass string `json:"listenerClass,omitempty"`
+	BrokerListenerClass string `json:"listenerClass,omitempty"`
 
+	// The ListenerClass used for bootstrapping new clients. Should use a stable ListenerClass to avoid unnecessary client restarts (such as `cluster-internal` or `external-stable`).
 	// +kubebuilder:validation:Optional
-	SecurityContext *corev1.PodSecurityContext `json:"securityContext"`
+	BootstrapListenerClass string `json:"bootstrapListenerClass,omitempty"`
 
+	// Request secret (currently only autoTls certificates) lifetime from the secret operator, e.g. `7d`, or `30d`.
+	// Please note that this can be shortened by the `maxCertificateLifetime` setting on the SecretClass issuing the TLS certificate.
 	// +kubebuilder:validation:Optional
-	Affinity *corev1.Affinity `json:"affinity"`
-
-	// +kubebuilder:validation:Optional
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	Tolerations []corev1.Toleration `json:"tolerations"`
-
-	// +kubebuilder:validation:Optional
-	PodDisruptionBudget *PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	StorageClass string `json:"storageClass,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="8Gi"
-	StorageSize string `json:"storageSize,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ExtraEnv map[string]string `json:"extraEnv,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ExtraSecret map[string]string `json:"extraSecret,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	Logging *BrokersContainerLoggingSpec `json:"logging,omitempty"`
-}
-type BrokersContainerLoggingSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	EnableVectorAgent bool `json:"enableVectorAgent,omitempty"`
-	// +kubebuilder:validation:Optional
-	Broker *LoggingConfigSpec `json:"broker,omitempty"`
+	RequestedSecretLifeTime string `json:"requestedSecretLifeTime,omitempty"`
 }
 type ConfigOverridesSpec struct {
-	Log4j    map[string]string `json:"log4j.properties,omitempty"`
+	Server   map[string]string `json:"server.properties,omitempty"`
 	Security map[string]string `json:"security.properties,omitempty"`
-}
-
-type PodDisruptionBudgetSpec struct {
-	// +kubebuilder:validation:Optional
-	MinAvailable int32 `json:"minAvailable,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	MaxUnavailable int32 `json:"maxUnavailable,omitempty"`
-}
-
-type ServiceSpec struct {
-	// +kubebuilder:validation:Optional
-	Annotations map[string]string `json:"annotations,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:enum=ClusterIP;NodePort;LoadBalancer;ExternalName
-	// +kubebuilder:default=ClusterIP
-	Type corev1.ServiceType `json:"type,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=65535
-	// +kubebuilder:default=18080
-	Port int32 `json:"port,omitempty"`
 }
 
 func init() {
