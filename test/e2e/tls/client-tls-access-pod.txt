@@ -27,7 +27,7 @@ spec:
     resources:
       limits:
         memory: "1.5Gi"
-        cpu: "300m"
+        cpu: "400m"
     volumeMounts:
     - name: client-tls
       mountPath: /kubedoop/client-tls
