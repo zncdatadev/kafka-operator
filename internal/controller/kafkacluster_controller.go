@@ -20,18 +20,20 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"k8s.io/client-go/util/retry"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
 
 // KafkaClusterReconciler reconciles a KafkaCluster object
 type KafkaClusterReconciler struct {
-	client.Client
+	ctrlclient.Client
 	Scheme *runtime.Scheme
 	Log    logr.Logger
 }
@@ -46,6 +48,7 @@ type KafkaClusterReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=listeners.kubedoop.dev,resources=listeners,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -57,46 +60,61 @@ type KafkaClusterReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/reconcile
 func (r *KafkaClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Kafka cluster instance")
 
-	cr := &kafkav1alpha1.KafkaCluster{}
+	logger.V(1).Info("Reconciling KafkaCluster")
 
-	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			r.Log.Error(err, "unable to fetch KafkaCluster")
-			return ctrl.Result{}, err
+	instance := &kafkav1alpha1.KafkaCluster{}
+	err := r.Get(ctx, req.NamespacedName, instance)
+	if err != nil {
+		if ctrlclient.IgnoreNotFound(err) == nil {
+			logger.V(1).Info("KafkaCluster not found, may have been deleted")
+			return ctrl.Result{}, nil
 		}
-		r.Log.Info("Kafka-cluster resource not found. Ignoring since object must be deleted")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
+	}
+	logger.V(1).Info("KafkaCluster found", "namespace", instance.Namespace, "name", instance.Name)
+
+	resourceClient := &client.Client{
+		Client:         r.Client,
+		OwnerReference: instance,
 	}
 
-	r.Log.Info("KafkaCluster found", "Name", cr.Name)
-	// reconcile order by "cluster -> role -> role-group -> resource"
-	result, err := NewClusterReconciler(r.Client, r.Scheme, cr).ReconcileCluster(ctx)
-	if err != nil {
+	gvk := instance.GetObjectKind().GroupVersionKind()
+
+	clusterReconciler := NewClusterReconciler(
+		resourceClient,
+		reconciler.ClusterInfo{
+			GVK: &metav1.GroupVersionKind{
+				Group:   gvk.Group,
+				Version: gvk.Version,
+				Kind:    gvk.Kind,
+			},
+			ClusterName: instance.Name,
+		},
+		&instance.Spec,
+	)
+
+	if err := clusterReconciler.RegisterResources(ctx); err != nil {
 		return ctrl.Result{}, err
-	} else if result.RequeueAfter > 0 {
+	}
+
+	if result, err := clusterReconciler.Reconcile(ctx); err != nil {
+		return ctrl.Result{}, err
+	} else if !result.IsZero() {
 		return result, nil
 	}
-	r.Log.Info("Reconcile successfully ", "Name", cr.Name)
-	return ctrl.Result{}, nil
-}
 
-// UpdateStatus updates the status of the KafkaCluster resource
-// https://stackoverflow.com/questions/76388004/k8s-controller-update-status-and-condition
-func (r *KafkaClusterReconciler) UpdateStatus(ctx context.Context, instance *kafkav1alpha1.KafkaCluster) error {
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return r.Status().Update(ctx, instance)
-		// return r.Status().Patch(ctx, instance, client.MergeFrom(instance))
-	})
+	logger.Info("Cluster resource reconciled, checking if ready.", "cluster", instance.Name, "namespace", instance.Namespace)
 
-	if retryErr != nil {
-		r.Log.Error(retryErr, "Failed to update vfm status after retries")
-		return retryErr
+	if result, err := clusterReconciler.Ready(ctx); err != nil {
+		return ctrl.Result{}, err
+	} else if !result.IsZero() {
+		return result, nil
 	}
 
-	r.Log.V(1).Info("Successfully patched object status")
-	return nil
+	logger.V(1).Info("Reconcile finished.", "cluster", instance.Name, "namespace", instance.Namespace)
+
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

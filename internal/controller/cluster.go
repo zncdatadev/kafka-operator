@@ -3,127 +3,94 @@ package controller
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
-	"github.com/zncdatadev/kafka-operator/internal/common"
-	svc2 "github.com/zncdatadev/kafka-operator/internal/controller/svc"
 	"github.com/zncdatadev/kafka-operator/internal/security"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	resourceClient "github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	"github.com/zncdatadev/operator-go/pkg/util"
+	corev1 "k8s.io/api/core/v1"
 )
 
-type ClusterReconciler struct {
-	client client.Client
-	scheme *runtime.Scheme
-	cr     *kafkav1alpha1.KafkaCluster
-	Log    logr.Logger
+var _ reconciler.Reconciler = &Reconciler{}
 
-	roleReconcilers     []common.RoleReconciler
-	resourceReconcilers []common.ResourceReconciler
-	*security.KafkaTlsSecurity
+type Reconciler struct {
+	reconciler.BaseCluster[*kafkav1alpha1.KafkaClusterSpec]
+	ClusterConfig    *kafkav1alpha1.ClusterConfigSpec
+	ClusterOperation *commonsv1alpha1.ClusterOperationSpec
 }
 
-func NewClusterReconciler(client client.Client, scheme *runtime.Scheme, cr *kafkav1alpha1.KafkaCluster) *ClusterReconciler {
-	c := &ClusterReconciler{
-		client: client,
-		scheme: scheme,
-		cr:     cr,
-	}
-	c.KafkaTlsSecurity = security.NewKafkaTlsSecurity(c.cr.Spec.ClusterConfig.Tls)
-	c.RegisterRole()
-	c.RegisterResource()
-	return c
-}
+func NewClusterReconciler(
+	client *resourceClient.Client,
+	clusterInfo reconciler.ClusterInfo,
+	spec *kafkav1alpha1.KafkaClusterSpec,
+) *Reconciler {
 
-// RegisterRole register role reconciler
-func (c *ClusterReconciler) RegisterRole() {
-	c.roleReconcilers = []common.RoleReconciler{
-		NewRoleBroker(c.scheme, c.cr, c.client, c.Log),
-	}
-}
-
-func (c *ClusterReconciler) RegisterResource() {
-	// registry sa resource
-	labels := common.RoleLabels{
-		InstanceName: c.cr.Name,
+	return &Reconciler{
+		BaseCluster: *reconciler.NewBaseCluster(
+			client,
+			clusterInfo,
+			spec.ClusterOperation,
+			spec,
+		),
+		ClusterConfig: spec.ClusterConfig,
 	}
 
-	sa := NewServiceAccount(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
-	role := NewRole(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
-	roleBinding := NewRoleBinding(c.scheme, c.cr, c.client, labels.GetLabels(), nil)
-	svc := svc2.NewClusterService(c.scheme, c.cr, c.client, labels.GetLabels(), nil, c.KafkaTlsSecurity)
-	c.resourceReconcilers = []common.ResourceReconciler{sa, role, roleBinding, svc}
 }
 
-func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, error) {
-	c.preReconcile()
-
-	// reconcile resource of cluster level
-	if len(c.resourceReconcilers) > 0 {
-		res, err := common.ReconcilerDoHandler(ctx, c.resourceReconcilers)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if res.RequeueAfter > 0 {
-			return res, nil
-		}
+func (r *Reconciler) GetImage() *util.Image {
+	image := &util.Image{
+		Repo:            kafkav1alpha1.DefaultRepository,
+		ProductName:     kafkav1alpha1.DefaultProductName,
+		KubedoopVersion: kafkav1alpha1.DefaultKubedoopVersion,
+		ProductVersion:  kafkav1alpha1.DefaultProductVersion,
+		PullPolicy:      corev1.PullIfNotPresent,
 	}
 
-	// reconcile role
-	for _, r := range c.roleReconcilers {
-		res, err := r.ReconcileRole(ctx)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if res.RequeueAfter > 0 {
-			return res, nil
-		}
+	if r.Spec.Image != nil {
+		image.Custom = r.Spec.Image.Custom
+		image.Repo = r.Spec.Image.Repo
+		image.KubedoopVersion = r.Spec.Image.KubedoopVersion
+		image.ProductVersion = r.Spec.Image.ProductVersion
+		image.PullPolicy = *r.Spec.Image.PullPolicy
 	}
+	return image
+}
 
-	// reconcile discovery
-	res, err := c.ReconcileDiscovery(ctx)
-	if err != nil {
-		return ctrl.Result{}, err
+func (r *Reconciler) RegisterResources(ctx context.Context) error {
+
+	// RBAC
+	sa := NewServiceAccountReconciler(r.Client, r.GetName())
+	r.AddResource(sa)
+
+	// role `Broker`
+	roleInfo := reconciler.RoleInfo{ClusterInfo: r.ClusterInfo, RoleName: RoleName}
+
+	tlsSecurity := security.NewKafkaTlsSecurity(r.ClusterConfig.Tls)
+
+	node := NewBrokerReconciler(
+		r.Client,
+		roleInfo,
+		r.Spec.Brokers,
+		r.GetImage(),
+		r.ClusterConfig,
+		r.ClusterOperation,
+		tlsSecurity,
+	)
+
+	if err := node.RegisterResources(ctx); err != nil {
+		return err
 	}
-	if res.RequeueAfter > 0 {
-		return res, nil
-	}
+	r.AddResource(node)
 
-	return ctrl.Result{}, nil
-}
+	// Discovery related resources:
+	// Note: NodePort service is merged with the main service.
+	// The access type is now controlled by listenerclass setting.
+	// TODO: Consider deprecating separate NodePort handling
+	discovery := NewKafkaDiscoveryReconciler(ctx, r.Client, tlsSecurity)
+	nodePortDiscovery := NewKafkaDiscoveryNodePortReconciler(ctx, r.Client, tlsSecurity)
+	r.AddResource(discovery)
+	r.AddResource(nodePortDiscovery)
 
-func (c *ClusterReconciler) preReconcile() {
-	// pre-reconcile
-	// merge all the role-group cfg of roles, and cache it
-	// because of existing role group config circle reference
-	// we need to cache it before reconcile
-	for _, r := range c.roleReconcilers {
-		r.CacheRoleGroupConfig()
-	}
-}
-
-func (c *ClusterReconciler) ReconcileDiscovery(ctx context.Context) (ctrl.Result, error) {
-	discovery := NewDiscovery(c.scheme, c.cr, c.client, c.KafkaTlsSecurity)
-	return discovery.ReconcileResource(ctx, common.NewSingleResourceBuilder(discovery))
-}
-
-type KafkaClusterInstance struct {
-	Instance *kafkav1alpha1.KafkaCluster
-}
-
-func (h *KafkaClusterInstance) GetRoleConfigSpec(_ common.Role) (any, error) {
-	return h.Instance.Spec.Brokers, nil
-}
-
-func (h *KafkaClusterInstance) GetClusterConfig() any {
-	return h.Instance.Spec.ClusterConfig
-}
-
-func (h *KafkaClusterInstance) GetNamespace() string {
-	return h.Instance.GetNamespace()
-}
-
-func (h *KafkaClusterInstance) GetInstanceName() string {
-	return h.Instance.GetName()
+	return nil
 }

@@ -3,54 +3,97 @@ kind: Pod
 metadata:
   name: client-tls-access
   labels:
-    name: client-tls-access
+    app.kubernetes.io/component: broker
+    app.kubernetes.io/instance: kafkacluster-sample
+    app.kubernetes.io/managed-by: kafka.kubedoop.dev
+    app.kubernetes.io/name: kafkacluster
+    app.kubernetes.io/role-group: default
 spec:
   restartPolicy: Never
   containers:
-  - name: client-tls-access
-    securityContext:
-      runAsUser: 0
-    image: ${KAFKA_IMAGE}
-    env:
-    - name: KAFKA
-      valueFrom:
-        configMapKeyRef:
-          key: KAFKA
-          name: ${KAFKA_DISCOVERY}
-    - name: KAFKA_HEAP_OPTS
-      value: "-Xmx819m"
-    command:
-    - /bin/sh
-    args:
-    - -c
-    - bash /kubedoop/test/client-tls-access.sh
-    resources:
-      limits:
-        memory: "1.5Gi"
-        cpu: "400m"
-    volumeMounts:
-    - name: client-tls
-      mountPath: /kubedoop/client-tls
-    - name: test-scripts
-      mountPath: /kubedoop/test
+    - name: client-tls-access
+      securityContext:
+        runAsUser: 0
+      image: ${KAFKA_IMAGE}
+      env:
+        - name: KAFKA
+          valueFrom:
+            configMapKeyRef:
+              key: KAFKA
+              name: ${KAFKA_DISCOVERY}
+        - name: KAFKA_HEAP_OPTS
+          value: "-Xmx819m"
+      command:
+        - /bin/sh
+      args:
+        - -c
+        - bash /kubedoop/test/client-tls-access.sh
+      resources:
+        limits:
+          memory: "1.5Gi"
+          cpu: "300m"
+      ports:
+        - containerPort: 9093
+          name: kafka-tls
+          protocol: TCP
+        - containerPort: 9606
+          name: metrics
+          protocol: TCP
+      volumeMounts:
+        - name: client-tls
+          mountPath: /kubedoop/client-tls
+        - name: listener-broker
+          mountPath: /kubedoop/listener-broker
+        - name: listener-bootstrap
+          mountPath: /kubedoop/listener-bootstrap
+        - name: test-scripts
+          mountPath: /kubedoop/test
   volumes:
-  - name: test-scripts
-    configMap:
-      name: client-tls-access
-  - name: client-tls
-    ephemeral:
-      volumeClaimTemplate:
-        metadata:
-          annotations:
-            secrets.kubedoop.dev/class: tls
-            secrets.kubedoop.dev/format: tls-p12
-            secrets.kubedoop.dev/scope: pod,node,service=kafkacluster-sample
-            secrets.kubedoop.dev/tlsPKCS12Password: "123456"
-        spec:
-          accessModes:
-          - ReadWriteOnce
-          resources:
-            requests:
-              storage: 10Mi
-          storageClassName: secrets.kubedoop.dev
-          volumeMode: Filesystem
+    - configMap:
+        name: client-tls-access
+      name: test-scripts
+    - ephemeral:
+        volumeClaimTemplate:
+          metadata:
+            annotations:
+              listeners.kubedoop.dev/class: cluster-internal
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Mi
+            storageClassName: listeners.kubedoop.dev
+            volumeMode: Filesystem
+      name: listener-broker
+    - ephemeral:
+        volumeClaimTemplate:
+          metadata:
+            annotations:
+              secrets.kubedoop.dev/class: tls
+              secrets.kubedoop.dev/format: tls-p12
+              secrets.kubedoop.dev/scope: listener-volume=listener-broker,listener-volume=listener-bootstrap,pod,node
+              secrets.kubedoop.dev/tlsPKCS12Password: "123456"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Mi
+            storageClassName: secrets.kubedoop.dev
+            volumeMode: Filesystem
+      name: client-tls
+    - name: listener-bootstrap
+      ephemeral:
+        volumeClaimTemplate:
+          metadata:
+            annotations:
+              listeners.kubedoop.dev/listenerName: kafkacluster-sample-broker-default-bootstrap
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Mi
+            storageClassName: listeners.kubedoop.dev
+            volumeMode: Filesystem
