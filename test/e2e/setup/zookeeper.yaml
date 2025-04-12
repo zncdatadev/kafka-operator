@@ -7,7 +7,7 @@ spec:
     stopped: false
   clusterConfig:
     listenerClass: external-unstable
-  server:
+  servers:
     roleGroups:
       default:
         replicas: 1
