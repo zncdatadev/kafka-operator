@@ -32,11 +32,7 @@ func NewStatefulSetReconciler(
 	overrides *commonsv1alpha1.OverridesSpec,
 	kafkaTlsSecurity *security.KafkaTlsSecurity,
 ) reconciler.ResourceReconciler[builder.StatefulSetBuilder] {
-	// stopped
-	stopped := false
-	if clusterOperation != nil && clusterOperation.Stopped {
-		stopped = true
-	}
+	stopped := clusterOperation != nil && clusterOperation.Stopped
 
 	builder := NewStatefulSetBuilder(
 		ctx,
