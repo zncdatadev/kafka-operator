@@ -137,7 +137,7 @@ func (d *KafkaContainerBuilder) LivenessProbe() *corev1.Probe {
 		SuccessThreshold:    1,
 		TimeoutSeconds:      5,
 		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(d.KafkaTlsSecurity.ClientPortName())},
+			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(d.ClientPortName())},
 		},
 	}
 }
@@ -150,7 +150,7 @@ func (d *KafkaContainerBuilder) ReadinessProbe() *corev1.Probe {
 		SuccessThreshold:    1,
 		TimeoutSeconds:      1,
 		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(d.KafkaTlsSecurity.ClientPortName())},
+			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(d.ClientPortName())},
 		},
 	}
 }
