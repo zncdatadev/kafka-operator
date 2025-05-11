@@ -90,6 +90,7 @@ type KafkaClusterList struct {
 // KafkaClusterSpec defines the desired state of KafkaCluster
 type KafkaClusterSpec struct {
 	// +kubebuilder:validation:Optional
+	// +default:value={"repo": "quay.io/zncdatadev", "pullPolicy": "IfNotPresent"}
 	Image *ImageSpec `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Required
