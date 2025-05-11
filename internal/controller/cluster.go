@@ -5,11 +5,11 @@ import (
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/security"
+	"github.com/zncdatadev/kafka-operator/internal/util/version"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	resourceClient "github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/util"
-	corev1 "k8s.io/api/core/v1"
 )
 
 var _ reconciler.Reconciler = &Reconciler{}
@@ -39,20 +39,19 @@ func NewClusterReconciler(
 }
 
 func (r *Reconciler) GetImage() *util.Image {
-	image := &util.Image{
-		Repo:            kafkav1alpha1.DefaultRepository,
-		ProductName:     kafkav1alpha1.DefaultProductName,
-		KubedoopVersion: kafkav1alpha1.DefaultKubedoopVersion,
-		ProductVersion:  kafkav1alpha1.DefaultProductVersion,
-		PullPolicy:      corev1.PullIfNotPresent,
-	}
+	image := util.NewImage(
+		kafkav1alpha1.DefaultProductName,
+		version.BuildVersion,
+		kafkav1alpha1.DefaultProductVersion,
+		func(options *util.ImageOptions) {
+			options.Custom = r.Spec.Image.Custom
+			options.Repo = r.Spec.Image.Repo
+			options.PullPolicy = *r.Spec.Image.PullPolicy
+		},
+	)
 
-	if r.Spec.Image != nil {
-		image.Custom = r.Spec.Image.Custom
-		image.Repo = r.Spec.Image.Repo
+	if r.Spec.Image.KubedoopVersion != "" {
 		image.KubedoopVersion = r.Spec.Image.KubedoopVersion
-		image.ProductVersion = r.Spec.Image.ProductVersion
-		image.PullPolicy = *r.Spec.Image.PullPolicy
 	}
 	return image
 }
