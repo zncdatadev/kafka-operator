@@ -1,0 +1,19 @@
+apiVersion: kafka.kubedoop.dev/v1alpha1
+kind: KafkaCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: kafkacluster
+    app.kubernetes.io/instance: kafkacluster-sample
+    app.kubernetes.io/part-of: kafka-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kafka-operator
+  name: kafkacluster-sample
+spec:
+  image:
+    productVersion: ($values.product_version)
+  clusterConfig:
+    zookeeperConfigMapName: kafka-znode
+  brokers:
+    roleGroups:
+      default:
+        replicas: 3
