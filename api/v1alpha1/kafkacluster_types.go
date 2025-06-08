@@ -169,7 +169,7 @@ type BrokersRoleGroupSpec struct {
 	// +kubebuilder:default:=1
 	Replicas int32 `json:"replicas,omitempty"`
 
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation：Optional
 	Config *BrokersConfigSpec `json:"config,omitempty"`
 
 	*commonsv1alpha1.OverridesSpec `json:",inline"`
