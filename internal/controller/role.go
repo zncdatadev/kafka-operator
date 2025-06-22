@@ -64,6 +64,9 @@ func (r *BrokerReconciler) RegisterResources(ctx context.Context) error {
 		if overrides == nil {
 			overrides = &commonsv1alpha1.OverridesSpec{}
 		}
+		if mergedConfig == nil {
+			mergedConfig = &kafkav1alpha1.BrokersConfigSpec{}
+		}
 		err = MergeFromUserConfig(mergedConfig, overrides, r.GetClusterName())
 		if err != nil {
 			return err

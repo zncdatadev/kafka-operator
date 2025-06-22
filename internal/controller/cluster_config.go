@@ -188,11 +188,17 @@ func MergeFromUserConfig(
 	userOverrides *commonsv1alpha1.OverridesSpec,
 	clusterName string,
 ) error {
-	if userConfig == nil {
-		return fmt.Errorf("userConfig cannot be nil")
-	}
 
 	defaultConfig := DefaultKafkaConfig(clusterName)
+
+	if userConfig == nil {
+		userConfig = &kafkav1alpha1.BrokersConfigSpec{
+			RoleGroupConfigSpec: &commonsv1alpha1.RoleGroupConfigSpec{
+				Affinity:  defaultConfig.Affinity,
+				Resources: defaultConfig.Resources,
+			},
+		}
+	}
 
 	// Merge base configurations
 	if err := mergeBaseConfig(userConfig, defaultConfig); err != nil {
@@ -203,21 +209,26 @@ func MergeFromUserConfig(
 	return mergeOverrides(userOverrides, defaultConfig)
 }
 
+func defaultRoleGroupConfigSpec(defaultKafkaConfig KafkaConfig) *commonsv1alpha1.RoleGroupConfigSpec {
+	return &commonsv1alpha1.RoleGroupConfigSpec{
+		Affinity:                defaultKafkaConfig.Affinity,
+		GracefulShutdownTimeout: defaultKafkaConfig.GracefulShutdownTimeout,
+		Logging:                 defaultKafkaConfig.Logging,
+		Resources:               defaultKafkaConfig.Resources,
+	}
+}
+
 // mergeBaseConfig merges base configuration items
 func mergeBaseConfig(userConfig *kafkav1alpha1.BrokersConfigSpec, defaultConfig KafkaConfig) error {
 	// Affinity
-	if userConfig.Affinity == nil {
-		userConfig.Affinity = defaultConfig.Affinity
+	if userConfig == nil {
+		userConfig = &kafkav1alpha1.BrokersConfigSpec{
+			RoleGroupConfigSpec: defaultRoleGroupConfigSpec(defaultConfig),
+		}
 	}
 
-	// GracefulShutdownTimeout
-	if userConfig.GracefulShutdownTimeout == "" {
-		userConfig.GracefulShutdownTimeout = defaultConfig.GracefulShutdownTimeout
-	}
-
-	// Logging
-	if userConfig.Logging == nil {
-		userConfig.Logging = defaultConfig.Logging
+	if userConfig.RoleGroupConfigSpec == nil {
+		userConfig.RoleGroupConfigSpec = defaultRoleGroupConfigSpec(defaultConfig)
 	}
 
 	// Resources
