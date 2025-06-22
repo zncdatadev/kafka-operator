@@ -85,7 +85,7 @@ func main() {
 	flag.Parse()
 
 	if showVersion {
-		importedVersion := version.NewAppInfo("zookeeper-operator").String()
+		importedVersion := version.NewAppInfo("kafka-operator").String()
 		fmt.Println(importedVersion)
 		os.Exit(0)
 	}
