@@ -182,7 +182,7 @@ type BrokersConfigSpec struct {
 	// and minimize performance overhead (such as `cluster-internal` or `external-unstable`)
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:="cluster-internal"
-	BrokerListenerClass string `json:"listenerClass,omitempty"`
+	BrokerListenerClass string `json:"brokerListenerClass,omitempty"`
 
 	// The ListenerClass used for bootstrapping new clients. Should use a stable ListenerClass to avoid unnecessary client restarts (such as `cluster-internal` or `external-stable`).
 	// +kubebuilder:validation:Optional
