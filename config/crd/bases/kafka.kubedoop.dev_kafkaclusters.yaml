@@ -55,14 +55,14 @@ spec:
                           clients. Should use a stable ListenerClass to avoid unnecessary
                           client restarts (such as `cluster-internal` or `external-stable`).
                         type: string
-                      gracefulShutdownTimeout:
-                        default: 30s
-                        type: string
-                      listenerClass:
+                      brokerListenerClass:
                         default: cluster-internal
                         description: |-
                           The ListenerClass used for connecting to brokers. Should use a direct connection ListenerClass to minimize cost
                           and minimize performance overhead (such as `cluster-internal` or `external-unstable`)
+                        type: string
+                      gracefulShutdownTimeout:
+                        default: 30s
                         type: string
                       logging:
                         properties:
@@ -224,14 +224,14 @@ spec:
                                 avoid unnecessary client restarts (such as `cluster-internal`
                                 or `external-stable`).
                               type: string
-                            gracefulShutdownTimeout:
-                              default: 30s
-                              type: string
-                            listenerClass:
+                            brokerListenerClass:
                               default: cluster-internal
                               description: |-
                                 The ListenerClass used for connecting to brokers. Should use a direct connection ListenerClass to minimize cost
                                 and minimize performance overhead (such as `cluster-internal` or `external-unstable`)
+                              type: string
+                            gracefulShutdownTimeout:
+                              default: 30s
                               type: string
                             logging:
                               properties:
