@@ -26,7 +26,15 @@ spec:
         file: ../setup/zookeeper-assert.yaml
     cleanup:
     - sleep:
-        duration: 30s
+        duration: 120s
+    catch:
+      - podLogs:
+          name: zookeepercluster-sample-0
+          container: server
+      - describe:
+          apiVersion: zookeeper.kubedoop.dev/v1alpha1
+          kind: ZookeeperCluster
+          name: zookeepercluster-sample
   - name: install kakfka cluster
     try:
     - apply:
