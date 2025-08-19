@@ -9,8 +9,6 @@ metadata:
     app.kubernetes.io/created-by: kafka-operator
   name: kafkacluster-sample
 spec:
-  image:
-    repository: docker.io/bitnami/kafka
   clusterConfig:
     zookeeperDiscoveryZNode: "sample-kafka-znode"
   brokers:
