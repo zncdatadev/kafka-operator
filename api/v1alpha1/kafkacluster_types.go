@@ -164,7 +164,7 @@ type KafkaAuthenticationSpec struct {
 }
 
 type KerberosAuthenticationProviderSpec struct {
-	KerberosSecretClass string
+	KerberosSecretClass string `json:"kerberosSecretClass,omitempty"`
 }
 
 type BrokersSpec struct {

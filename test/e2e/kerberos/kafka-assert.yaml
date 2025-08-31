@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafkacluster-sample-broker-default
+status:
+  replicas: 3
+  availableReplicas: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafkacluster-sample

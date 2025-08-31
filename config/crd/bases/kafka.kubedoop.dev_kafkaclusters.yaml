@@ -408,6 +408,24 @@ spec:
                 type: object
               clusterConfig:
                 properties:
+                  authentication:
+                    items:
+                      properties:
+                        authenticationClass:
+                          description: "*\t ## TLS provider\n*\n*\t Only affects client
+                            connections. This setting controls:\n*\t - If clients
+                            need to authenticate themselves against the broker via
+                            TLS\n*\t - Which ca.crt to use when validating the provided
+                            client certs\n*\n*\t This will override the server TLS
+                            settings (if set) in `spec.clusterConfig.tls.serverSecretClass`.\n"
+                          type: string
+                        kerberos:
+                          properties:
+                            kerberosSecretClass:
+                              type: string
+                          type: object
+                      type: object
+                    type: array
                   clusterDomain:
                     default: cluster.local
                     type: string
