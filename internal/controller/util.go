@@ -19,8 +19,8 @@ func BootstrapListenerName(roleGroupInfo *reconciler.RoleGroupInfo) string {
 	return roleGroupInfo.GetFullName() + "-bootstrap"
 }
 
-func KafkaContainerPorts(kafkaTlsSecurity *security.KafkaTlsSecurity) []corev1.ContainerPort {
-	return []corev1.ContainerPort{
+func KafkaContainerPorts(kafkaTlsSecurity *security.KafkaSecurity) []corev1.ContainerPort {
+	ports := []corev1.ContainerPort{
 		{
 			Name:          kafkaTlsSecurity.ClientPortName(),
 			ContainerPort: int32(kafkaTlsSecurity.ClientPort()),
@@ -32,4 +32,14 @@ func KafkaContainerPorts(kafkaTlsSecurity *security.KafkaTlsSecurity) []corev1.C
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+
+	if kafkaTlsSecurity.IsKerberosEnabled() {
+		bootstrapPorts := corev1.ContainerPort{
+			Name:          kafkav1alpha1.BootstrapPortName,
+			ContainerPort: int32(kafkaTlsSecurity.BootstrapPort()),
+			Protocol:      corev1.ProtocolTCP,
+		}
+		ports = append(ports, bootstrapPorts)
+	}
+	return ports
 }

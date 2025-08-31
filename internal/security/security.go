@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/pkg"
 	"github.com/zncdatadev/kafka-operator/internal/util"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	appsv1 "k8s.io/api/apps/v1"
@@ -44,6 +45,15 @@ const (
 	InterSSLClientAuth         = "listener.name.internal.ssl.client.auth"
 )
 
+const (
+	BOOTSTRAP_SSL_KEYSTORE_LOCATION   = "listener.name.bootstrap.ssl.keystore.location"
+	BOOTSTRAP_SSL_KEYSTORE_PASSWORD   = "listener.name.bootstrap.ssl.keystore.password"
+	BOOTSTRAP_SSL_KEYSTORE_TYPE       = "listener.name.bootstrap.ssl.keystore.type"
+	BOOTSTRAP_SSL_TRUSTSTORE_LOCATION = "listener.name.bootstrap.ssl.truststore.location"
+	BOOTSTRAP_SSL_TRUSTSTORE_PASSWORD = "listener.name.bootstrap.ssl.truststore.password"
+	BOOTSTRAP_SSL_TRUSTSTORE_TYPE     = "listener.name.bootstrap.ssl.truststore.type"
+)
+
 // Directories
 const (
 	KubedoopTLSCertServerDir           = kafkav1alpha1.KubedoopRoot + "/tls_cert_server_mount"
@@ -56,43 +66,68 @@ const (
 
 const PKCS12 = "PKCS12"
 
-type KafkaTlsSecurity struct {
+type KafkaSecurity struct {
+	KafkaAuthentications        []kafkav1alpha1.KafkaAuthenticationSpec
 	ResolvedAnthenticationClass string
 	InternalSecretClass         string
 	ServerSecretClass           string
 	SSLStorePassword            string
+
+	KerberosAuth *KerberosAuthentication
 }
 
-// NewKafkaTlsSecurity creates a new KafkaTlsSecurity instance
-func NewKafkaTlsSecurity(tlsSpec *kafkav1alpha1.KafkaTlsSpec) *KafkaTlsSecurity {
-	if tlsSpec == nil {
-		return &KafkaTlsSecurity{}
-	}
-	return &KafkaTlsSecurity{
+// NewKafkaSecurity creates a new KafkaTlsSecurity instance
+func NewKafkaSecurity(
+	cluster *kafkav1alpha1.KafkaCluster,
+) *KafkaSecurity {
+	tlsSpec := cluster.Spec.ClusterConfig.Tls
+	auths := cluster.Spec.ClusterConfig.Authentication
+
+	instance := &KafkaSecurity{
 		ResolvedAnthenticationClass: "", // unsupport currently
+		KafkaAuthentications:        auths,
 		InternalSecretClass:         tlsSpec.InternalSecretClass,
 		ServerSecretClass:           tlsSpec.ServerSecretClass,
 		SSLStorePassword:            tlsSpec.SSLStorePassword,
 	}
+
+	if instance.IsKerberosEnabled() {
+		instance.KerberosAuth = NewKerberosAuthentication(
+			&pkg.KafkaRole{
+				Cluster: cluster,
+			},
+		)
+	}
+
+	return instance
+}
+
+func (k *KafkaSecurity) IsKerberosEnabled() bool {
+	for _, auth := range k.KafkaAuthentications {
+		if auth.Kerberos != nil && auth.Kerberos.KerberosSecretClass != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // TlsEnabled checks if TLS encryption is enabled
-func (k *KafkaTlsSecurity) TlsEnabled() bool {
+func (k *KafkaSecurity) TlsEnabled() bool {
 	return k.TlsClientAuthenticationClass() != "" || k.TlsServerSecretClass() != ""
 }
 
 // TlsServerSecretClass retrieves an optional TLS secret class for external client -> server communications
-func (k *KafkaTlsSecurity) TlsServerSecretClass() string {
+func (k *KafkaSecurity) TlsServerSecretClass() string {
 	return k.ServerSecretClass
 }
 
 // TlsClientAuthenticationClass retrieves an optional TLS AuthenticationClass
-func (k *KafkaTlsSecurity) TlsClientAuthenticationClass() string {
+func (k *KafkaSecurity) TlsClientAuthenticationClass() string {
 	return k.ResolvedAnthenticationClass
 }
 
 // TlsInternalSecretClass retrieves the mandatory internal SecretClass
-func (k *KafkaTlsSecurity) TlsInternalSecretClass() string {
+func (k *KafkaSecurity) TlsInternalSecretClass() string {
 	if k.InternalSecretClass != "" {
 		return k.InternalSecretClass
 	}
@@ -100,37 +135,48 @@ func (k *KafkaTlsSecurity) TlsInternalSecretClass() string {
 }
 
 // ClientPort returns the Kafka (secure) client port depending on tls or authentication settings
-func (k *KafkaTlsSecurity) ClientPort() int {
+func (k *KafkaSecurity) ClientPort() int {
 	if k.TlsEnabled() {
 		return kafkav1alpha1.SecurityClientPort
 	}
 	return kafkav1alpha1.ClientPort
 }
 
+func (k *KafkaSecurity) BootstrapPort() int {
+	if k.TlsEnabled() {
+		return kafkav1alpha1.BootstrapSecurePort
+	}
+	return kafkav1alpha1.BootstrapPort
+}
+
 // ClientPortName returns the Kafka (secure) client port name depending on tls or authentication settings
-func (k *KafkaTlsSecurity) ClientPortName() string {
+func (k *KafkaSecurity) ClientPortName() string {
 	if k.TlsEnabled() {
 		return kafkav1alpha1.SecureClientPortName
 	}
 	return kafkav1alpha1.ClientPortName
 }
 
+func (k *KafkaSecurity) BootstrapPortName() string {
+	return kafkav1alpha1.BootstrapPortName
+}
+
 // InternalPort returns the Kafka (secure) internal port depending on tls settings
-func (k *KafkaTlsSecurity) InternalPort() int {
-	if k.TlsInternalSecretClass() != "" {
+func (k *KafkaSecurity) InternalPort() int {
+	if k.TlsInternalSecretClass() != "" || k.IsKerberosEnabled() {
 		return kafkav1alpha1.SecurityInternalPort
 	}
 	return kafkav1alpha1.InternalPort
 }
 
 // SvcContainerCommands returns SVC container command to retrieve the node port service port
-func (k *KafkaTlsSecurity) SvcContainerCommands() string {
+func (k *KafkaSecurity) SvcContainerCommands() string {
 	portName := k.ClientPortName()
 	return fmt.Sprintf("kubectl get service \"$POD_NAME\" -o jsonpath='{.spec.ports[?(@.name==\"%s\")].nodePort}' | tee %s/%s_nodeport", portName, "/tmp", portName)
 }
 
 // KcatProberContainerCommands returns the commands for the kcat readiness probe
-func (k *KafkaTlsSecurity) KcatProberContainerCommands() []string {
+func (k *KafkaSecurity) KcatProberContainerCommands() []string {
 	args := []string{kafkav1alpha1.KubedoopRoot + "/kcat"}
 	port := k.ClientPort()
 
@@ -149,7 +195,7 @@ func (k *KafkaTlsSecurity) KcatProberContainerCommands() []string {
 }
 
 // KcatClientAuthSsl returns the SSL configuration for kcat client with authentication
-func (k *KafkaTlsSecurity) KcatClientAuthSsl(certDirectory string) []string {
+func (k *KafkaSecurity) KcatClientAuthSsl(certDirectory string) []string {
 	return []string{
 		"-X", "security.protocol=SSL",
 		"-X", fmt.Sprintf("ssl.key.location=%s/tls.key", certDirectory),
@@ -159,7 +205,7 @@ func (k *KafkaTlsSecurity) KcatClientAuthSsl(certDirectory string) []string {
 }
 
 // KcatClientSsl returns the SSL configuration for kcat client
-func (k *KafkaTlsSecurity) KcatClientSsl(certDirectory string) []string {
+func (k *KafkaSecurity) KcatClientSsl(certDirectory string) []string {
 	return []string{
 		"-X", "security.protocol=SSL",
 		"-X", fmt.Sprintf("ssl.ca.location=%s/ca.crt", certDirectory),
@@ -167,7 +213,7 @@ func (k *KafkaTlsSecurity) KcatClientSsl(certDirectory string) []string {
 }
 
 // AddVolumeAndVolumeMounts adds required volumes and volume mounts to the pod and container builders
-func (k *KafkaTlsSecurity) AddVolumeAndVolumeMounts(sts *appsv1.StatefulSet, requestLifeTime string) {
+func (k *KafkaSecurity) AddVolumeAndVolumeMounts(sts *appsv1.StatefulSet, requestLifeTime string) {
 	kafkaContainer := k.getContainer(sts.Spec.Template.Spec.Containers, "kafka")
 	if tlsServerSecretClass := k.TlsServerSecretClass(); tlsServerSecretClass != "" {
 		// cbKcatProber.AddVolumeMount(KubedoopTLSCertServerDirName, KubedoopTLSCertServerDir) todo
@@ -192,17 +238,17 @@ func (k *KafkaTlsSecurity) AddVolumeAndVolumeMounts(sts *appsv1.StatefulSet, req
 }
 
 // statefulset add tls volumes
-func (k *KafkaTlsSecurity) AddVolume(sts *appsv1.StatefulSet, volume corev1.Volume) {
+func (k *KafkaSecurity) AddVolume(sts *appsv1.StatefulSet, volume corev1.Volume) {
 	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, volume)
 }
 
 // container add tls volume mount
-func (k *KafkaTlsSecurity) AddVolumeMount(container *corev1.Container, volumeName, mountPath string) {
+func (k *KafkaSecurity) AddVolumeMount(container *corev1.Container, volumeName, mountPath string) {
 	container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: volumeName, MountPath: mountPath})
 }
 
 // get the container by container name in containers
-func (k *KafkaTlsSecurity) getContainer(containers []corev1.Container, name string) *corev1.Container {
+func (k *KafkaSecurity) getContainer(containers []corev1.Container, name string) *corev1.Container {
 	for i := range containers {
 		if containers[i].Name == name {
 			return &containers[i]
@@ -211,8 +257,19 @@ func (k *KafkaTlsSecurity) getContainer(containers []corev1.Container, name stri
 	return nil
 }
 
+func (k *KafkaSecurity) GetKerberosAuth() (*KerberosAuthentication, error) {
+	if k.IsKerberosEnabled() {
+		if k.KerberosAuth == nil {
+			return nil, fmt.Errorf("kerberos is enabled, but has a nil kerberos auth in KafkaSecurit")
+		}
+		return k.KerberosAuth, nil
+	}
+
+	return nil, nil
+}
+
 // ConfigSettings returns required Kafka configuration settings for the server.properties file
-func (k *KafkaTlsSecurity) ConfigSettings() map[string]string {
+func (k *KafkaSecurity) ConfigSettings() map[string]string {
 	config := make(map[string]string)
 	// We set either client tls with authentication or client tls without authentication
 	// If authentication is explicitly required we do not want to have any other CAs to
@@ -234,6 +291,23 @@ func (k *KafkaTlsSecurity) ConfigSettings() map[string]string {
 		config[ClientSSLTrustStorePassword] = k.SSLStorePassword
 		config[ClientSSLTrustStoreType] = PKCS12
 	}
+
+	// Bootstrap
+	if k.IsKerberosEnabled() {
+		config[BOOTSTRAP_SSL_KEYSTORE_LOCATION] = fmt.Sprintf("%s/keystore.p12", KubedoopTLSKeyStoreServerDir)
+		config[BOOTSTRAP_SSL_KEYSTORE_PASSWORD] = k.SSLStorePassword
+		config[BOOTSTRAP_SSL_KEYSTORE_TYPE] = PKCS12
+		config[BOOTSTRAP_SSL_TRUSTSTORE_LOCATION] = fmt.Sprintf("%s/truststore.p12", KubedoopTLSKeyStoreServerDir)
+		config[BOOTSTRAP_SSL_TRUSTSTORE_PASSWORD] = k.SSLStorePassword
+		config[BOOTSTRAP_SSL_TRUSTSTORE_TYPE] = PKCS12
+	}
+
+	if k.IsKerberosEnabled() {
+		config["sasl.enabled.mechanisms"] = "GSSAPI"
+		config["sasl.kerberos.service.name"] = "kafka"
+		config["sasl.mechanism.inter.broker.protocol"] = "GSSAPI"
+	}
+
 	// Internal tls
 	if k.TlsInternalSecretClass() != "" {
 		config[InterSSLKeyStoreLocation] = fmt.Sprintf("%s/keystore.p12", KubedoopTLSKeyStoreInternalDir)

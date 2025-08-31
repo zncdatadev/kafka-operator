@@ -21,7 +21,7 @@ func NewBrokerReconciler(
 	image *opgoutil.Image,
 	clusterConfig *kafkav1alpha1.ClusterConfigSpec,
 	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 ) *BrokerReconciler {
 
 	stopped := clusterOperation != nil && clusterOperation.Stopped
@@ -46,7 +46,7 @@ type BrokerReconciler struct {
 	clusterConfig    *kafkav1alpha1.ClusterConfigSpec
 	clusterOperation *commonsv1alpha1.ClusterOperationSpec
 	image            *opgoutil.Image
-	kafkaTlsSecurity *security.KafkaTlsSecurity
+	kafkaTlsSecurity *security.KafkaSecurity
 }
 
 func (r *BrokerReconciler) RegisterResources(ctx context.Context) error {

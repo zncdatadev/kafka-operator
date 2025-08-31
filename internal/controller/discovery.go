@@ -22,14 +22,14 @@ const (
 
 type DiscoveryBuilder struct {
 	builder.ConfigMapBuilder
-	kafkaSecurity *security.KafkaTlsSecurity
+	kafkaSecurity *security.KafkaSecurity
 	isNodePort    bool
 }
 
 func NewKafkaDiscoveryReconciler(
 	ctx context.Context,
 	client *client.Client,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 ) reconciler.ResourceReconciler[builder.ConfigBuilder] {
 	builder := NewKafkaDiscoveryBuilder(client, kafkaTlsSecurity, false)
 	return reconciler.NewGenericResourceReconciler(client, builder)
@@ -38,7 +38,7 @@ func NewKafkaDiscoveryReconciler(
 func NewKafkaDiscoveryNodePortReconciler(
 	ctx context.Context,
 	client *client.Client,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 ) reconciler.ResourceReconciler[builder.ConfigBuilder] {
 	builder := NewKafkaDiscoveryBuilder(client, kafkaTlsSecurity, true)
 	return reconciler.NewGenericResourceReconciler(client, builder)
@@ -46,7 +46,7 @@ func NewKafkaDiscoveryNodePortReconciler(
 
 func NewKafkaDiscoveryBuilder(
 	client *client.Client,
-	kafkaSecurity *security.KafkaTlsSecurity,
+	kafkaSecurity *security.KafkaSecurity,
 	isNodePort bool,
 ) builder.ConfigBuilder {
 	name := client.GetOwnerName()
@@ -69,6 +69,9 @@ func NewKafkaDiscoveryBuilder(
 
 func (b *DiscoveryBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
 	portName := b.kafkaSecurity.ClientPortName()
+	if b.kafkaSecurity.IsKerberosEnabled() {
+		portName = b.kafkaSecurity.BootstrapPortName()
+	}
 
 	listenerList := &listenerv1alpha1.ListenerList{}
 	err := b.Client.Client.List(

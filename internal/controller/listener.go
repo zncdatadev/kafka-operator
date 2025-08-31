@@ -2,12 +2,12 @@ package controller
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 	"strings"
 
 	"github.com/zncdatadev/kafka-operator/internal/pkg"
 	"github.com/zncdatadev/kafka-operator/internal/security"
+	"github.com/zncdatadev/kafka-operator/internal/util"
 	"github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 
@@ -18,7 +18,7 @@ func NewRoleGroupBootstrapListenerReconciler(
 	client *client.Client,
 	bootstrapListenerClass string,
 	info *reconciler.RoleGroupInfo,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 ) reconciler.ResourceReconciler[pkg.ListenerBuidler] {
 
 	builder := pkg.NewListenerBuilder(
@@ -64,6 +64,7 @@ const (
 	Client     KafkaListenerName = "CLIENT"
 	ClientAuth KafkaListenerName = "CLIENT_AUTH"
 	Internal   KafkaListenerName = "INTERNAL"
+	Bootstrap  KafkaListenerName = "BOOTSTRAP"
 )
 
 type KafkaListener struct {
@@ -108,10 +109,10 @@ func (config *KafkaListenerConfig) ListenerSecurityProtocolMapString() string {
 
 func GetKafkaListenerConfig(
 	namespace string,
-	kafkaSecurity *security.KafkaTlsSecurity,
+	kafkaSecurity *security.KafkaSecurity,
 	objectName string,
 ) (*KafkaListenerConfig, error) {
-	podFqdn := podFqdn(namespace, objectName)
+	podFqdn := util.PodFqdn(namespace, objectName)
 
 	var listeners []KafkaListener
 	var advertisedListeners []KafkaListener
@@ -125,10 +126,23 @@ func GetKafkaListenerConfig(
 		})
 		advertisedListeners = append(advertisedListeners, KafkaListener{
 			Name: ClientAuth,
-			Host: nodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
-			Port: nodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
+			Host: util.NodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: util.NodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
 		})
 		listenerSecurityProtocolMap[ClientAuth] = Ssl
+	} else if kafkaSecurity.IsKerberosEnabled() {
+		// 1) Kerberos authentication is enabled
+		listeners = append(listeners, KafkaListener{
+			Name: Client,
+			Host: LISTENER_LOCAL_ADDRESS,
+			Port: strconv.Itoa(kafkaSecurity.ClientPort()),
+		})
+		advertisedListeners = append(advertisedListeners, KafkaListener{
+			Name: Client,
+			Host: util.NodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: util.NodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
+		})
+		listenerSecurityProtocolMap[Client] = Ssl
 	} else if kafkaSecurity.TlsServerSecretClass() != "" {
 		listeners = append(listeners, KafkaListener{
 			Name: Client,
@@ -137,8 +151,8 @@ func GetKafkaListenerConfig(
 		})
 		advertisedListeners = append(advertisedListeners, KafkaListener{
 			Name: Client,
-			Host: nodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
-			Port: nodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
+			Host: util.NodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: util.NodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
 		})
 		listenerSecurityProtocolMap[Client] = Ssl
 	} else {
@@ -149,13 +163,13 @@ func GetKafkaListenerConfig(
 		})
 		advertisedListeners = append(advertisedListeners, KafkaListener{
 			Name: Client,
-			Host: nodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
-			Port: nodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
+			Host: util.NodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: util.NodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
 		})
 		listenerSecurityProtocolMap[Client] = Plaintext
 	}
 
-	if kafkaSecurity.TlsInternalSecretClass() != "" {
+	if kafkaSecurity.TlsInternalSecretClass() != "" || kafkaSecurity.IsKerberosEnabled() {
 		listeners = append(listeners, KafkaListener{
 			Name: Internal,
 			Host: LISTENER_LOCAL_ADDRESS,
@@ -181,23 +195,43 @@ func GetKafkaListenerConfig(
 		listenerSecurityProtocolMap[Internal] = Plaintext
 	}
 
+	// BOOTSTRAP
+	// if kafka_security.has_kerberos_enabled() {
+	//     listeners.push(KafkaListener {
+	//         name: KafkaListenerName::Bootstrap,
+	//         host: LISTENER_LOCAL_ADDRESS.to_string(),
+	//         port: kafka_security.bootstrap_port().to_string(),
+	//     });
+	//     advertised_listeners.push(KafkaListener {
+	//         name: KafkaListenerName::Bootstrap,
+	//         host: node_address_cmd(STACKABLE_LISTENER_BROKER_DIR),
+	//         port: node_port_cmd(
+	//             STACKABLE_LISTENER_BROKER_DIR,
+	//             kafka_security.client_port_name(),
+	//         ),
+	//     });
+	//     listener_security_protocol_map
+	//         .insert(KafkaListenerName::Bootstrap, KafkaListenerProtocol::SaslSsl);
+	// }
+
+	// Bootstrap
+	if kafkaSecurity.IsKerberosEnabled() {
+		listeners = append(listeners, KafkaListener{
+			Name: Bootstrap,
+			Host: LISTENER_LOCAL_ADDRESS,
+			Port: strconv.Itoa(kafkaSecurity.BootstrapPort()),
+		})
+		advertisedListeners = append(advertisedListeners, KafkaListener{
+			Name: Bootstrap,
+			Host: util.NodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir),
+			Port: util.NodePortCmd(kafkav1alpha1.KubedoopListenerBrokerDir, kafkaSecurity.ClientPortName()),
+		})
+		listenerSecurityProtocolMap[Bootstrap] = Ssl
+	}
+
 	return &KafkaListenerConfig{
 		Listeners:                   listeners,
 		AdvertisedListeners:         advertisedListeners,
 		ListenerSecurityProtocolMap: listenerSecurityProtocolMap,
 	}, nil
-}
-
-func nodeAddressCmd(directory string) string {
-	filePath := path.Join(directory, "default-address/address")
-	return fmt.Sprintf("$(cat %s)", filePath)
-}
-
-func nodePortCmd(directory string, portName string) string {
-	filePath := path.Join(directory, "default-address/ports", portName)
-	return fmt.Sprintf("$(cat %s)", filePath)
-}
-
-func podFqdn(namespace string, objectName string) string {
-	return fmt.Sprintf("$POD_NAME.%s.%s.svc.cluster.local", objectName, namespace)
 }

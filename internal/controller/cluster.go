@@ -65,7 +65,8 @@ func (r *Reconciler) RegisterResources(ctx context.Context) error {
 	// role `Broker`
 	roleInfo := reconciler.RoleInfo{ClusterInfo: r.ClusterInfo, RoleName: RoleName}
 
-	tlsSecurity := security.NewKafkaTlsSecurity(r.ClusterConfig.Tls)
+	cluster := r.Client.OwnerReference.(*kafkav1alpha1.KafkaCluster)
+	tlsSecurity := security.NewKafkaSecurity(cluster)
 
 	node := NewBrokerReconciler(
 		r.Client,

@@ -30,7 +30,7 @@ func NewStatefulSetReconciler(
 	roleGroupInf *reconciler.RoleGroupInfo,
 	brokerConfig *kafkav1alpha1.BrokersConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 ) reconciler.ResourceReconciler[builder.StatefulSetBuilder] {
 	stopped := clusterOperation != nil && clusterOperation.Stopped
 
@@ -57,8 +57,9 @@ func NewStatefulSetBuilder(
 	roleGroupInf *reconciler.RoleGroupInfo,
 	brokerConfig *kafkav1alpha1.BrokersConfigSpec,
 	overrdes *commonsv1alpha1.OverridesSpec,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 ) builder.StatefulSetBuilder {
+
 	return &StatefulSetBuilder{
 		StatefulSet: *builder.NewStatefulSetBuilder(
 			client,
@@ -89,7 +90,7 @@ type StatefulSetBuilder struct {
 	ClusterConfig    *kafkav1alpha1.ClusterConfigSpec
 	roleGroupInf     *reconciler.RoleGroupInfo
 	brokerConfig     *kafkav1alpha1.BrokersConfigSpec
-	kafkaTlsSecurity *security.KafkaTlsSecurity
+	kafkaTlsSecurity *security.KafkaSecurity
 }
 
 func (b *StatefulSetBuilder) GetObject() (*appv1.StatefulSet, error) {
@@ -185,7 +186,7 @@ func (b *StatefulSetBuilder) Volumes() ([]corev1.Volume, error) {
 		return nil, err
 	}
 
-	return []corev1.Volume{
+	volumes := []corev1.Volume{
 		{
 			Name: kafkav1alpha1.KubedoopLogDirName,
 			VolumeSource: corev1.VolumeSource{
@@ -217,7 +218,12 @@ func (b *StatefulSetBuilder) Volumes() ([]corev1.Volume, error) {
 				Ephemeral: listenerPvc,
 			},
 		},
-	}, nil
+	}
+
+	if b.kafkaTlsSecurity.IsKerberosEnabled() {
+		volumes = append(volumes, b.kafkaTlsSecurity.KerberosAuth.GetVolumes()...)
+	}
+	return volumes, nil
 }
 
 // kafka log dirs pvc
