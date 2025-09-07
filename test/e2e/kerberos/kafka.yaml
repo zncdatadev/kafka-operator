@@ -13,11 +13,11 @@ spec:
     productVersion: ($values.product_version)
   clusterConfig:
     zookeeperConfigMapName: kafka-znode
-  tls:
+    tls:
       sslStorePassword: "123456"
       internalSecretClass: tls
       serverSecretClass: tls
-  authentication:
+    authentication:
     - kerberos:   # TODO
         kerberosSecretClass: kerberos
   brokers:

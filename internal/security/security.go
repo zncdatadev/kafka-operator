@@ -86,9 +86,14 @@ func NewKafkaSecurity(
 	instance := &KafkaSecurity{
 		ResolvedAnthenticationClass: "", // unsupport currently
 		KafkaAuthentications:        auths,
-		InternalSecretClass:         tlsSpec.InternalSecretClass,
-		ServerSecretClass:           tlsSpec.ServerSecretClass,
-		SSLStorePassword:            tlsSpec.SSLStorePassword,
+		// InternalSecretClass:         tlsSpec.InternalSecretClass,
+		// ServerSecretClass:           tlsSpec.ServerSecretClass,
+		// SSLStorePassword:            tlsSpec.SSLStorePassword,
+	}
+	if tlsSpec != nil {
+		instance.InternalSecretClass = tlsSpec.InternalSecretClass
+		instance.ServerSecretClass = tlsSpec.ServerSecretClass
+		instance.SSLStorePassword = tlsSpec.SSLStorePassword
 	}
 
 	if instance.IsKerberosEnabled() {
