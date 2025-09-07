@@ -1,0 +1,33 @@
+apiVersion: kafka.kubedoop.dev/v1alpha1
+kind: KafkaCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: kafkacluster
+    app.kubernetes.io/instance: kafkacluster-sample
+    app.kubernetes.io/part-of: kafka-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kafka-operator
+  name: kafkacluster-sample
+spec:
+  image:
+    productVersion: ($values.product_version)
+  clusterConfig:
+    zookeeperConfigMapName: kafka-znode
+    tls:
+      sslStorePassword: "123456"
+      internalSecretClass: tls
+      serverSecretClass: tls
+    authentication:
+    - kerberos:   # TODO
+        kerberosSecretClass: kerberos
+  brokers:
+    roleGroups:
+      default:
+        replicas: 3
+        config:
+          resources:
+            cpu:
+              min: 200m
+              max: 600m
+            memory:
+              limit: "1Gi"

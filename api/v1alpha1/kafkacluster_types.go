@@ -35,6 +35,7 @@ const (
 	SecureClientPortName = "kafka-tls"
 	InternalPortName     = "internal"
 	MetricsPortName      = "metrics"
+	BootstrapPortName    = "bootstrap"
 
 	ClientPort                = 9092
 	SecurityClientPort        = 9093
@@ -43,6 +44,8 @@ const (
 	MetricsPort               = 9606
 	PodSvcClientNodePortMin   = 30092
 	PodSvcInternalNodePortMin = 31092
+	BootstrapPort             = 9094
+	BootstrapSecurePort       = 9095
 )
 
 const (
@@ -56,6 +59,7 @@ const (
 	KubedoopLogDirName        = "log"
 	KubedoopListenerBroker    = "listener-broker"
 	KubedoopListenerBootstrap = "listener-bootstrap"
+	KubedoopKerberosName      = "listener-kerberos"
 
 	KubedoopRoot                 = "/kubedoop"
 	KubedoopDataDir              = KubedoopRoot + "/data"
@@ -64,6 +68,8 @@ const (
 	KubedoopLogDir               = KubedoopRoot + "/log"
 	KubedoopListenerBrokerDir    = KubedoopRoot + "/listener-broker"
 	KubedoopListenerBootstrapDir = KubedoopRoot + "/listener-bootstrap"
+	KubedoopKerberosDir          = KubedoopRoot + "/kerberos"
+	KubedoopKerberosKrb5Path     = KubedoopKerberosDir + "/krb5.conf"
 )
 
 // +kubebuilder:object:root=true
@@ -109,6 +115,9 @@ type ClusterConfigSpec struct {
 	ClusterDomain string `json:"clusterDomain,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	Authentication []KafkaAuthenticationSpec `json:"authentication,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	Tls *KafkaTlsSpec `json:"tls,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -148,7 +157,14 @@ type KafkaAuthenticationSpec struct {
 	 *	 This will override the server TLS settings (if set) in `spec.clusterConfig.tls.serverSecretClass`.
 	 */
 	// +kubebuilder:validation:Optional
+	// TODO: Use with operator-go
 	AuthenticationClass string `json:"authenticationClass,omitempty"`
+
+	Kerberos *KerberosAuthenticationProviderSpec `json:"kerberos,omitempty"`
+}
+
+type KerberosAuthenticationProviderSpec struct {
+	KerberosSecretClass string `json:"kerberosSecretClass,omitempty"`
 }
 
 type BrokersSpec struct {

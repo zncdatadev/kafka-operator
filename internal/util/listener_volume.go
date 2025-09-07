@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
@@ -102,4 +103,18 @@ func (b *ListenerOperatorVolumeSourceBuilder) BuildPVC(name string) (*corev1.Per
 		},
 		Spec: b.buildSpec(),
 	}, nil
+}
+
+func NodeAddressCmd(directory string) string {
+	filePath := path.Join(directory, "default-address/address")
+	return fmt.Sprintf("$(cat %s)", filePath)
+}
+
+func NodePortCmd(directory string, portName string) string {
+	filePath := path.Join(directory, "default-address/ports", portName)
+	return fmt.Sprintf("$(cat %s)", filePath)
+}
+
+func PodFqdn(namespace string, objectName string) string {
+	return fmt.Sprintf("$POD_NAME.%s.%s.svc.cluster.local", objectName, namespace)
 }

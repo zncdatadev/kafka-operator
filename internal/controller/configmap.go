@@ -33,7 +33,7 @@ func NewKafkaConfigmapReconciler(
 	ctx context.Context,
 	client *client.Client,
 	clusterConfig *kafkav1alpha1.ClusterConfigSpec,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 	roleGroupInf *reconciler.RoleGroupInfo,
 	overrides *commonsv1alpha1.OverridesSpec,
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
@@ -53,7 +53,7 @@ func NewKafkaConfigmapBuilder(
 	client *client.Client,
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	clusterConfig *kafkav1alpha1.ClusterConfigSpec,
-	kafkaTlsSecurity *security.KafkaTlsSecurity,
+	kafkaTlsSecurity *security.KafkaSecurity,
 	overrides *commonsv1alpha1.OverridesSpec,
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
 ) builder.ConfigBuilder {
@@ -81,7 +81,7 @@ type KafkaConfigmapBuilder struct {
 
 	ClusterConfig *kafkav1alpha1.ClusterConfigSpec
 
-	kafkaSecurity   *security.KafkaTlsSecurity
+	kafkaSecurity   *security.KafkaSecurity
 	overrides       *commonsv1alpha1.OverridesSpec
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
 

@@ -21,7 +21,7 @@ type KafkaContainerBuilder struct {
 	resourceSpec *commonsv1alpha1.ResourcesSpec
 
 	zookeeperDiscoveryZNode string
-	*security.KafkaTlsSecurity
+	*security.KafkaSecurity
 	namespace    string
 	groupSvcName string
 }
@@ -30,13 +30,13 @@ func NewKafkaContainer(
 	image string,
 	imagePullPolicy corev1.PullPolicy,
 	zookeeperDiscoveryZNode string,
-	tlsSecurity *security.KafkaTlsSecurity,
+	tlsSecurity *security.KafkaSecurity,
 	namespace string,
 	groupSvcName string,
 ) *KafkaContainerBuilder {
 	return &KafkaContainerBuilder{
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
-		KafkaTlsSecurity:        tlsSecurity,
+		KafkaSecurity:           tlsSecurity,
 		namespace:               namespace,
 		groupSvcName:            groupSvcName,
 	}
@@ -82,6 +82,10 @@ func (d *KafkaContainerBuilder) ContainerEnv() []corev1.EnvVar {
 		},
 	}
 
+	if d.IsKerberosEnabled() {
+		envs = append(envs, d.getKerbersoAuth().GetEnvs()...)
+	}
+
 	if d.resourceSpec != nil && d.resourceSpec.Memory != nil {
 		memoryLimit := d.resourceSpec.Memory.Limit
 		heap := fmt.Sprintf("-Xmx%dm", int(util.QuantityToMB(memoryLimit)*0.8))
@@ -91,6 +95,14 @@ func (d *KafkaContainerBuilder) ContainerEnv() []corev1.EnvVar {
 		})
 	}
 	return envs
+}
+
+func (d *KafkaContainerBuilder) getKerbersoAuth() *security.KerberosAuthentication {
+	if krbAuth, err := d.GetKerberosAuth(); err != nil {
+		return nil
+	} else {
+		return krbAuth
+	}
 }
 
 // create listener
@@ -126,6 +138,9 @@ func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: kafkav1alpha1.KubedoopListenerBootstrapDir,
 		},
 	}
+	if d.IsKerberosEnabled() {
+		mounts = append(mounts, d.getKerbersoAuth().GetVolumeMount()...)
+	}
 	return mounts
 }
 
@@ -157,7 +172,7 @@ func (d *KafkaContainerBuilder) ReadinessProbe() *corev1.Probe {
 
 // ContainerPorts  make container ports of data node
 func (d *KafkaContainerBuilder) ContainerPorts() []corev1.ContainerPort {
-	return KafkaContainerPorts(d.KafkaTlsSecurity)
+	return KafkaContainerPorts(d.KafkaSecurity)
 }
 
 func (d *KafkaContainerBuilder) Command() []string {
@@ -167,7 +182,7 @@ func (d *KafkaContainerBuilder) Command() []string {
 // CommandArgs command args
 // ex: export NODE_PORT=$(cat /kubedoop/tmp/kafka_nodepor
 func (d *KafkaContainerBuilder) CommandArgs() []string {
-	listenerConfig, err := GetKafkaListenerConfig(d.namespace, d.KafkaTlsSecurity, d.groupSvcName)
+	listenerConfig, err := GetKafkaListenerConfig(d.namespace, d.KafkaSecurity, d.groupSvcName)
 	if err != nil {
 		return nil
 	}
@@ -184,6 +199,12 @@ func (d *KafkaContainerBuilder) CommandArgs() []string {
 	args = append(args, opgputil.RemoveVectorShutdownFileCommand())
 	// kafka execute command
 	args = append(args, "prepare_signal_handlers")
+
+	// kerberos set real env
+	if d.IsKerberosEnabled() {
+		args = append(args, fmt.Sprintf("export KERBEROS_REALM=$(grep -oP 'default_realm = \\K.*' %s)", kafkav1alpha1.KubedoopKerberosKrb5Path))
+	}
+
 	args = append(args, d.LaunchCommand(listeners, advertisedListers, lisenerSecurityProtocolMap))
 	args = append(args, "wait_for_termination")
 	// create vector shut down file command
@@ -194,6 +215,15 @@ func (d *KafkaContainerBuilder) CommandArgs() []string {
 
 // kafka launch command
 func (d *KafkaContainerBuilder) LaunchCommand(listeners, advertisedListers, lisenerSecurityProtocolMap string) string {
-	return fmt.Sprintf(`bin/kafka-server-start.sh %s/%s --override "zookeeper.connect=${ZOOKEEPER}" --override "listeners=%s" --override "advertised.listeners=%s" --override "listener.security.protocol.map=%s" &`,
+	cmds := fmt.Sprintf(`bin/kafka-server-start.sh %s/%s --override "zookeeper.connect=${ZOOKEEPER}" --override "listeners=%s" --override "advertised.listeners=%s" --override "listener.security.protocol.map=%s" `,
 		kafkav1alpha1.KubedoopConfigDir, kafkav1alpha1.ServerFileName, listeners, advertisedListers, lisenerSecurityProtocolMap)
+
+	if d.IsKerberosEnabled() {
+		serviceName := d.getKerbersoAuth().Role.KerberosServiceName()
+		brokerAddress := util.NodeAddressCmd(kafkav1alpha1.KubedoopListenerBrokerDir)
+		bootstrapAddress := util.NodeAddressCmd(kafkav1alpha1.KubedoopListenerBootstrapDir)
+		kerberosArgs := fmt.Sprintf(" --override \"listener.name.client.gssapi.sasl.jaas.config=com.sun.security.auth.module.Krb5LoginModule required useKeyTab=true storeKey=true isInitiator=false keyTab=\\\"/kubedoop/kerberos/keytab\\\" principal=\\\"%s/%s@$KERBEROS_REALM\\\";\" --override \"listener.name.bootstrap.gssapi.sasl.jaas.config=com.sun.security.auth.module.Krb5LoginModule required useKeyTab=true storeKey=true isInitiator=false keyTab=\\\"/kubedoop/kerberos/keytab\\\" principal=\\\"%s/%s@$KERBEROS_REALM\\\";\"", serviceName, brokerAddress, serviceName, bootstrapAddress)
+		cmds = cmds + kerberosArgs
+	}
+	return cmds + " &"
 }
