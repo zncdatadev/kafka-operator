@@ -42,7 +42,7 @@ jobs:
           '1.32.0'
         ]
         product-version: ['3.7.2', '3.8.0', '3.9.0']
-      # max-parallel: 1
+      max-parallel: 3
     steps:
       - name: Clone the code
         uses: actions/checkout@v5

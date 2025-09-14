@@ -53,6 +53,9 @@ func (r *Reconciler) GetImage() *util.Image {
 	if r.Spec.Image.KubedoopVersion != "" {
 		image.KubedoopVersion = r.Spec.Image.KubedoopVersion
 	}
+	if r.Spec.Image.ProductVersion != "" {
+		image.ProductVersion = r.Spec.Image.ProductVersion
+	}
 	return image
 }
 
