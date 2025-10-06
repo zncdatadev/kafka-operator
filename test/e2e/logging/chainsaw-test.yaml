@@ -48,7 +48,9 @@ spec:
         namespace: "*"
     - podLogs:
         selector: app.kubernetes.io/name=kafka-operator
-        namespace: "*"
+        namespace: kafka-operator-system
+    - podLogs:
+        selector: app.kubernetes.io/name=zookeepercluster
   - name: assert kafka logs
     try:
     - sleep:
