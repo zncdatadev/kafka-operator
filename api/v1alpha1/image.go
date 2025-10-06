@@ -6,7 +6,7 @@ import (
 
 const (
 	DefaultRepository     = "quay.io/zncdatadev"
-	DefaultProductVersion = "3.7.1"
+	DefaultProductVersion = "3.9.0"
 	DefaultProductName    = "kafka"
 )
 
