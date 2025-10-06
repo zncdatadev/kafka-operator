@@ -335,8 +335,8 @@ $(CHAINSAW): $(LOCALBIN)
 
 .PHONY: chainsaw-setup
 chainsaw-setup: ## Run the chainsaw setup
-# 	make docker-build
-# 	$(KIND) --name $(KIND_CLUSTER_NAME) load docker-image $(IMG)
+	make docker-build
+	$(KIND) --name $(KIND_CLUSTER_NAME) load docker-image $(IMG)
 	KUBECONFIG=$(KIND_KUBECONFIG) make helm-install-depends
 	KUBECONFIG=$(KIND_KUBECONFIG) make deploy
 
