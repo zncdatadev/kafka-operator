@@ -42,11 +42,13 @@ spec:
     - assert:
         file: kafka-assert.yaml
     catch:
-    - podLogs:
-        selector: app.kubernetes.io/name=kafka-operator
     - describe:
         apiVersion: v1
         kind: Pod
+        namespace: "*"
+    - podLogs:
+        selector: app.kubernetes.io/name=kafka-operator
+        namespace: "*"
   - name: assert kafka logs
     try:
     - sleep:

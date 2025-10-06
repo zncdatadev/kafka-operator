@@ -20,6 +20,14 @@ spec:
         file: kafka.yaml
     - assert:
         file: kafka-assert.yaml
+    catch:
+    - describe:
+        apiVersion: v1
+        kind: Pod
+        namespace: "*"
+    - podLogs:
+        selector: app.kubernetes.io/name=kafka-operator
+        namespace: "*"
   - name: tls client access test
     try:
       - apply:
