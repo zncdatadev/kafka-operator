@@ -50,7 +50,7 @@ const (
 
 const (
 	ImageRepository = "quay.io/zncdatadev/kafka"
-	ImageTag        = "3.7.1-kubedoop0.0.0-dev"
+	ImageTag        = "3.9.0-kubedoop0.0.0-dev"
 	ImagePullPolicy = corev1.PullIfNotPresent
 
 	KubedoopKafkaDataDirName  = "data" // kafka log dirs
