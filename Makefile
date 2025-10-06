@@ -288,7 +288,7 @@ endif
 # So if you want to use the target cluster, to run `export KUBECONFIG=./kind-kubeconfig-$(KIND_K8S_VERSION)`.
 KIND_K8S_VERSION ?= 1.26.15
 CHAINSAW_VERSION ?= v0.2.12
-PRODUCT_VERSION ?= 3.7.1
+PRODUCT_VERSION ?= 3.9.0
 
 KIND_IMAGE ?= kindest/node:v${KIND_K8S_VERSION}
 KIND_KUBECONFIG ?= ./kind-kubeconfig-$(KIND_K8S_VERSION)
@@ -335,8 +335,8 @@ $(CHAINSAW): $(LOCALBIN)
 
 .PHONY: chainsaw-setup
 chainsaw-setup: ## Run the chainsaw setup
-	make docker-build
-	$(KIND) --name $(KIND_CLUSTER_NAME) load docker-image $(IMG)
+# 	make docker-build
+# 	$(KIND) --name $(KIND_CLUSTER_NAME) load docker-image $(IMG)
 	KUBECONFIG=$(KIND_KUBECONFIG) make helm-install-depends
 	KUBECONFIG=$(KIND_KUBECONFIG) make deploy
 
