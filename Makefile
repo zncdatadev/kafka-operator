@@ -1,5 +1,5 @@
 # VERSION refers to the application version.
-VERSION ?= 0.0.0-dev
+VERSION ?= 0.3.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 # The version only effects unit tests.
 # You can find the list of released envtest-k8s versions with `Release envtest` from https://github.com/kubernetes-sigs/controller-tools/releases
@@ -288,7 +288,7 @@ endif
 # So if you want to use the target cluster, to run `export KUBECONFIG=./kind-kubeconfig-$(KIND_K8S_VERSION)`.
 KIND_K8S_VERSION ?= 1.26.15
 CHAINSAW_VERSION ?= v0.2.12
-PRODUCT_VERSION ?= 3.7.1
+PRODUCT_VERSION ?= 3.9.0
 
 KIND_IMAGE ?= kindest/node:v${KIND_K8S_VERSION}
 KIND_KUBECONFIG ?= ./kind-kubeconfig-$(KIND_K8S_VERSION)

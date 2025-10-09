@@ -8,7 +8,7 @@ on:
 
 
 env:
-  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0-dev' }}
+  VERSION: 0.3.0
 
 
 jobs:
@@ -117,7 +117,7 @@ jobs:
           done
 
           # Install kafka-operator chart
-          helm install --create-namespace --namespace kafka-operators --wait kafka-operator ./deploy/helm/kafka-operator
+          helm install --create-namespace --namespace kafka-operator-system --wait kafka-operator ./deploy/helm/kafka-operator
 
           # E2E tests
           make chainsaw
