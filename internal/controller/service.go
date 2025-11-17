@@ -7,7 +7,6 @@ import (
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/builder"
 	"github.com/zncdatadev/operator-go/pkg/client"
-	"github.com/zncdatadev/operator-go/pkg/constants"
 	opconstants "github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +24,7 @@ func NewRoleGroupService(
 
 	matchLabels := info.GetLabels()
 	svcLabels := maps.Clone(matchLabels)
-	svcLabels["prometheus.io/scrape"] = "true"
+	svcLabels["prometheus.io/scrape"] = LabelValueTrue
 
 	builder := NewServiceBuilder(
 		client,
@@ -33,7 +32,7 @@ func NewRoleGroupService(
 		nil,
 		func(sbo *builder.ServiceBuilderOptions) {
 			sbo.Headless = true
-			sbo.ListenerClass = constants.ClusterInternal
+			sbo.ListenerClass = opconstants.ClusterInternal
 			sbo.Labels = svcLabels
 			sbo.MatchingLabels = matchLabels
 		},
@@ -101,16 +100,16 @@ func NewRoleGroupMetricsService(
 	for k, v := range roleGroupInfo.GetLabels() {
 		labels[k] = v
 	}
-	labels["prometheus.io/scrape"] = "true"
+	labels["prometheus.io/scrape"] = LabelValueTrue
 
 	// Prepare annotations (copy from roleGroupInfo and add Prometheus annotations)
 	annotations := make(map[string]string)
 	for k, v := range roleGroupInfo.GetAnnotations() {
 		annotations[k] = v
 	}
-	annotations["prometheus.io/scrape"] = "true"
+	annotations["prometheus.io/scrape"] = LabelValueTrue
 	// annotations["prometheus.io/path"] = "/metrics"  // default path is /metrics
-	annotations["prometheus.io/port"] = strconv.Itoa(int(metricsPort))
+	annotations["prometheus.io/port"] = strconv.Itoa(metricsPort)
 	annotations["prometheus.io/scheme"] = scheme
 
 	// Create base service builder

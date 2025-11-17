@@ -16,8 +16,8 @@ import (
 const (
 	KafkaDiscoveryKey = "KAFKA"
 
-	LabelListenerBootstrap      = "app.kubernetes.io/listener-bootstrap"
-	LabelListenerBootstrapValue = "true"
+	LabelListenerBootstrap = "app.kubernetes.io/listener-bootstrap"
+	LabelValueTrue         = "true"
 )
 
 type DiscoveryBuilder struct {
@@ -77,7 +77,7 @@ func (b *DiscoveryBuilder) Build(ctx context.Context) (ctrlclient.Object, error)
 	err := b.Client.Client.List(
 		ctx,
 		listenerList,
-		ctrlclient.MatchingLabels{LabelListenerBootstrap: LabelListenerBootstrapValue},
+		ctrlclient.MatchingLabels{LabelListenerBootstrap: LabelValueTrue},
 	)
 	if err != nil {
 		return nil, err
