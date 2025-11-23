@@ -30,7 +30,7 @@ func NewRoleGroupBootstrapListenerReconciler(
 			lbo.ContainerPorts = KafkaContainerPorts(kafkaTlsSecurity)
 			lbo.PublishNotReadyAddresses = true
 			lbo.ExtraPodSelectorLabels = map[string]string{
-				LabelListenerBootstrap: LabelListenerBootstrapValue, // "app.kubernetes.io/listener-bootstrap: true", add this label for search in discovery
+				LabelListenerBootstrap: LabelValueTrue, // "app.kubernetes.io/listener-bootstrap: true", add this label for search in discovery
 			}
 		},
 	)

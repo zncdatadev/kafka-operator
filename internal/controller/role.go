@@ -145,5 +145,11 @@ func (r *BrokerReconciler) RegisterResourceWithRoleGroup(
 	)
 	reconcilers = append(reconcilers, listener)
 
+	// role group metrics service
+	metricsSvc := NewRoleGroupMetricsService(
+		r.Client,
+		roleGroupInfo,
+	)
+	reconcilers = append(reconcilers, metricsSvc)
 	return reconcilers, nil
 }
