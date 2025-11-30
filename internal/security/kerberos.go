@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"fmt"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
@@ -46,12 +47,17 @@ func (k *KerberosAuthentication) GetEnvs() []corev1.EnvVar {
 }
 
 // Get Volumes
-func (k *KerberosAuthentication) GetVolumes() []corev1.Volume {
+func (k *KerberosAuthentication) GetVolumes(ctx context.Context) ([]corev1.Volume, error) {
 
 	listenerScopes := []string{kafkav1alpha1.KubedoopListenerBroker, kafkav1alpha1.KubedoopListenerBootstrap}
 	scopeStr := ""
 	for _, s := range listenerScopes {
 		scopeStr += "," + "listener-volume=" + s
+	}
+
+	kerberosSecretClass, err := k.Role.GetKerberosSecretClass(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Kerberos secret class: %w", err)
 	}
 
 	return []corev1.Volume{
@@ -62,7 +68,7 @@ func (k *KerberosAuthentication) GetVolumes() []corev1.Volume {
 					VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
-								constants.AnnotationSecretsClass:                k.Role.GetKerberosSecretClass(),
+								constants.AnnotationSecretsClass:                kerberosSecretClass,
 								constants.AnnotationSecretsScope:                scopeStr[1:], // remove leading ","
 								constants.AnnotationSecretsKerberosServiceNames: k.Role.KerberosServiceName(),
 							},
@@ -84,5 +90,5 @@ func (k *KerberosAuthentication) GetVolumes() []corev1.Volume {
 				},
 			},
 		},
-	}
+	}, nil
 }

@@ -67,11 +67,10 @@ const (
 const PKCS12 = "PKCS12"
 
 type KafkaSecurity struct {
-	KafkaAuthentications        []kafkav1alpha1.KafkaAuthenticationSpec
-	ResolvedAnthenticationClass string
-	InternalSecretClass         string
-	ServerSecretClass           string
-	SSLStorePassword            string
+	ResolvedAuthenticationClasses *pkg.ResolvedAuthenticationClasses
+	InternalSecretClass           string
+	ServerSecretClass             string
+	SSLStorePassword              string
 
 	KerberosAuth *KerberosAuthentication
 }
@@ -79,16 +78,13 @@ type KafkaSecurity struct {
 // NewKafkaSecurity creates a new KafkaTlsSecurity instance
 func NewKafkaSecurity(
 	cluster *kafkav1alpha1.KafkaCluster,
+	kafkaRole *pkg.KafkaRole,
+	resolvedAuthClasses *pkg.ResolvedAuthenticationClasses,
 ) *KafkaSecurity {
 	tlsSpec := cluster.Spec.ClusterConfig.Tls
-	auths := cluster.Spec.ClusterConfig.Authentication
 
 	instance := &KafkaSecurity{
-		ResolvedAnthenticationClass: "", // unsupport currently
-		KafkaAuthentications:        auths,
-		// InternalSecretClass:         tlsSpec.InternalSecretClass,
-		// ServerSecretClass:           tlsSpec.ServerSecretClass,
-		// SSLStorePassword:            tlsSpec.SSLStorePassword,
+		ResolvedAuthenticationClasses: resolvedAuthClasses,
 	}
 	if tlsSpec != nil {
 		instance.InternalSecretClass = tlsSpec.InternalSecretClass
@@ -97,19 +93,21 @@ func NewKafkaSecurity(
 	}
 
 	if instance.IsKerberosEnabled() {
-		instance.KerberosAuth = NewKerberosAuthentication(
-			&pkg.KafkaRole{
-				Cluster: cluster,
-			},
-		)
+		instance.KerberosAuth = NewKerberosAuthentication(kafkaRole)
 	}
 
 	return instance
 }
 
 func (k *KafkaSecurity) IsKerberosEnabled() bool {
-	for _, auth := range k.KafkaAuthentications {
-		if auth.Kerberos != nil && auth.Kerberos.KerberosSecretClass != "" {
+	if k.ResolvedAuthenticationClasses == nil {
+		return false
+	}
+
+	for _, authClass := range k.ResolvedAuthenticationClasses.Classes {
+		if authClass.Spec.AuthenticationProvider != nil &&
+			authClass.Spec.AuthenticationProvider.Kerberos != nil &&
+			authClass.Spec.AuthenticationProvider.Kerberos.KerberosStorageClass != "" {
 			return true
 		}
 	}
@@ -127,8 +125,10 @@ func (k *KafkaSecurity) TlsServerSecretClass() string {
 }
 
 // TlsClientAuthenticationClass retrieves an optional TLS AuthenticationClass
+// TODO: implement TLS authentication class resolution
 func (k *KafkaSecurity) TlsClientAuthenticationClass() string {
-	return k.ResolvedAnthenticationClass
+	// Currently unsupported
+	return ""
 }
 
 // TlsInternalSecretClass retrieves the mandatory internal SecretClass

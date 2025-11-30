@@ -157,10 +157,9 @@ type KafkaAuthenticationSpec struct {
 	 *	 This will override the server TLS settings (if set) in `spec.clusterConfig.tls.serverSecretClass`.
 	 */
 	// +kubebuilder:validation:Optional
-	// TODO: Use with operator-go
 	AuthenticationClass string `json:"authenticationClass,omitempty"`
 
-	Kerberos *KerberosAuthenticationProviderSpec `json:"kerberos,omitempty"`
+	// Kerberos *KerberosAuthenticationProviderSpec `json:"kerberos,omitempty"`
 }
 
 type KerberosAuthenticationProviderSpec struct {
