@@ -18,8 +18,7 @@ spec:
       internalSecretClass: tls
       serverSecretClass: tls
     authentication:
-    - kerberos:   # TODO
-        kerberosSecretClass: kerberos
+    - authenticationClass: kafka-kerberos-auth
   brokers:
     roleGroups:
       default:

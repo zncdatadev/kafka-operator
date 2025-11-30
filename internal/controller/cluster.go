@@ -4,6 +4,7 @@ import (
 	"context"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
+	"github.com/zncdatadev/kafka-operator/internal/pkg"
 	"github.com/zncdatadev/kafka-operator/internal/security"
 	"github.com/zncdatadev/kafka-operator/internal/util/version"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
@@ -69,7 +70,15 @@ func (r *Reconciler) RegisterResources(ctx context.Context) error {
 	roleInfo := reconciler.RoleInfo{ClusterInfo: r.ClusterInfo, RoleName: RoleName}
 
 	cluster := r.Client.OwnerReference.(*kafkav1alpha1.KafkaCluster)
-	tlsSecurity := security.NewKafkaSecurity(cluster)
+
+	// Create KafkaRole and resolve authentication classes
+	kafkaRole := pkg.NewClusterRole(cluster, r.Client)
+	resolvedAuthClasses, err := kafkaRole.FromReferences(ctx, cluster.Spec.ClusterConfig.Authentication)
+	if err != nil {
+		return err
+	}
+
+	tlsSecurity := security.NewKafkaSecurity(cluster, kafkaRole, resolvedAuthClasses)
 
 	node := NewBrokerReconciler(
 		r.Client,

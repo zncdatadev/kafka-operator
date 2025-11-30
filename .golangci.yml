@@ -1,7 +1,6 @@
 version: "2"
 run:
   allow-parallel-runners: true
-
 linters:
   default: none
   enable:
@@ -15,7 +14,7 @@ linters:
     - ineffassign
     - lll
     - misspell
-    - nestif
+    - nakedret
     - prealloc
     - revive
     - staticcheck
@@ -40,7 +39,6 @@ linters:
       - third_party$
       - builtin$
       - examples$
-
 formatters:
   enable:
     - gofmt

@@ -120,7 +120,7 @@ func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, erro
 	}
 	b.AddVolumeClaimTemplates([]corev1.PersistentVolumeClaim{*bootstrapListenerPVC, *b.dataPvc()}) // data pvc, listener-bootstrap pvc
 
-	volumes, err := b.Volumes()
+	volumes, err := b.Volumes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (b *StatefulSetBuilder) createMainContainer() *corev1.Container {
 }
 
 // Volumes
-func (b *StatefulSetBuilder) Volumes() ([]corev1.Volume, error) {
+func (b *StatefulSetBuilder) Volumes(ctx context.Context) ([]corev1.Volume, error) {
 	listenerVolumenSourceBuilder := util.NewListenerOperatorVolumeSourceBuilder(
 		&util.ListenerReference{
 			ListenerClass: b.brokerConfig.BrokerListenerClass,
@@ -221,7 +221,11 @@ func (b *StatefulSetBuilder) Volumes() ([]corev1.Volume, error) {
 	}
 
 	if b.kafkaTlsSecurity.IsKerberosEnabled() {
-		volumes = append(volumes, b.kafkaTlsSecurity.KerberosAuth.GetVolumes()...)
+		kerberosVolumes, err := b.kafkaTlsSecurity.KerberosAuth.GetVolumes(ctx)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, kerberosVolumes...)
 	}
 	return volumes, nil
 }

@@ -1,3 +1,5 @@
+
+---
 apiVersion: secrets.kubedoop.dev/v1alpha1
 kind: SecretClass
 metadata:
@@ -14,3 +16,13 @@ spec:
         name: ($kadminKeytabSecret)
         namespace: ($namespace)
       adminPrincipal: (join('', ['admin/admin@', ($relam)]))
+
+---
+apiVersion: authentication.kubedoop.dev/v1alpha1
+kind: AuthenticationClass
+metadata:
+  name: kafka-kerberos-auth
+spec:
+  provider:
+    kerberos:
+      kerberosStorageClass: kerberos
