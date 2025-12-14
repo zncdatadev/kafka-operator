@@ -1,20 +1,12 @@
 # VERSION refers to the application version.
 VERSION ?= 0.0.0-dev
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-# The version only effects unit tests.
-# You can find the list of released envtest-k8s versions with `Release envtest` from https://github.com/kubernetes-sigs/controller-tools/releases
-ENVTEST_K8S_VERSION = 1.32.0
 
 # REGISTRY refers to the container registry where the image will be pushed.
 REGISTRY ?= quay.io/zncdatadev
 # OCI_REGISTRY refers to the OCI registry where the helm chart will be pushed.
 OCI_REGISTRY ?= oci://quay.io/kubedoopcharts
+
 PROJECT_NAME = kafka-operator
-
-# Build variables
-BUILD_TIMESTAMP ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-BUILD_COMMIT ?= $(shell git rev-parse HEAD)
-
 # Image URL to use all building/pushing image targets
 IMG ?= $(REGISTRY)/$(PROJECT_NAME):$(VERSION)
 
@@ -39,6 +31,7 @@ SHELL = /usr/bin/env bash -o pipefail
 .PHONY: all
 all: build
 
+
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
@@ -56,15 +49,16 @@ all: build
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+
 ##@ Development
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:generateEmbeddedObjectMeta=true webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	"$(CONTROLLER_GEN)" rbac:roleName=manager-role crd:generateEmbeddedObjectMeta=true webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	"$(CONTROLLER_GEN)" object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -75,36 +69,55 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+test: manifests generate fmt vet setup-envtest ## Run tests.
+	KUBEBUILDER_ASSETS="$(shell "$(ENVTEST)" use $(ENVTEST_K8S_VERSION) --bin-dir "$(LOCALBIN)" -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
-# Prometheus and CertManager are installed by default; skip with:
-# - PROMETHEUS_INSTALL_SKIP=true
+# CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
-.PHONY: test-e2e
-test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
-	@command -v kind >/dev/null 2>&1 || { \
+KIND_CLUSTER ?= ${PROJECT_NAME}-test-e2e
+
+.PHONY: setup-test-e2e
+setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
+	@command -v $(KIND) >/dev/null 2>&1 || { \
 		echo "Kind is not installed. Please install Kind manually."; \
 		exit 1; \
 	}
-	@kind get clusters | grep -q 'kind' || { \
-		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
-		exit 1; \
-	}
-	go test ./test/e2e/ -v -ginkgo.v
+	@case "$$($(KIND) get clusters)" in \
+		*"$(KIND_CLUSTER)"*) \
+			echo "Kind cluster '$(KIND_CLUSTER)' already exists. Skipping creation." ;; \
+		*) \
+			echo "Creating Kind cluster '$(KIND_CLUSTER)'..."; \
+			$(KIND) create cluster --name $(KIND_CLUSTER) ;; \
+	esac
+
+.PHONY: test-e2e
+test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) go test -tags=e2e ./test/e2e/ -v -ginkgo.v
+	$(MAKE) cleanup-test-e2e
+
+.PHONY: cleanup-test-e2e
+cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
+	@$(KIND) delete cluster --name $(KIND_CLUSTER)
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
-	$(GOLANGCI_LINT) run
+	"$(GOLANGCI_LINT)" run
 
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
-	$(GOLANGCI_LINT) run --fix
+	"$(GOLANGCI_LINT)" run --fix
+
+.PHONY: lint-config
+lint-config: golangci-lint ## Verify golangci-lint linter configuration
+	"$(GOLANGCI_LINT)" config verify
 
 ##@ Build
 
+# Build variables
+BUILD_TIMESTAMP ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+BUILD_COMMIT ?= $(shell git rev-parse HEAD)
 LDFLAGS = "-X github.com/zncdatadev/$(PROJECT_NAME)/internal/util/version.BuildVersion=$(VERSION) \
 	-X github.com/zncdatadev/$(PROJECT_NAME)/internal/util/version.GitCommit=$(BUILD_COMMIT) \
 	-X github.com/zncdatadev/$(PROJECT_NAME)/internal/util/version.BuildTime=$(BUILD_TIMESTAMP)"
@@ -136,29 +149,30 @@ docker-push: ## Push docker image with the manager.
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
 PLATFORMS ?= linux/arm64,linux/amd64
 .PHONY: docker-buildx
-BUILDX_METADATA_FILE ?= docker-digests.json # The file to store the digests of the images built by buildx
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
+	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name $(PROJECT_NAME)-builder
 	$(CONTAINER_TOOL) buildx use $(PROJECT_NAME)-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --build-arg LDFLAGS=$(LDFLAGS) --tag ${IMG}  --metadata-file ${BUILDX_METADATA_FILE}  -f Dockerfile .
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --build-arg LDFLAGS=$(LDFLAGS) --tag ${IMG} --metadata-file docker-digests.json -f Dockerfile.cross .
 	- $(CONTAINER_TOOL) buildx rm $(PROJECT_NAME)-builder
+	rm Dockerfile.cross
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
+	cd config/manager && "$(KUSTOMIZE)" edit set image controller=${IMG}
+	"$(KUSTOMIZE)" build config/default > dist/install.yaml
 
 .PHONY: chart ## Generate helm chart for the operator.
 chart: manifests kustomize ## Generate helm chart for the operator.
-	$(KUSTOMIZE) build config/crd > deploy/helm/$(PROJECT_NAME)/crds/crds.yaml
+	"$(KUSTOMIZE)" build config/crd > deploy/helm/$(PROJECT_NAME)/crds/crds.yaml
 
 .PHONY: chart-publish ## Publish helm chart for the operator.
 chart-publish: helm chart ## Publish helm chart for the operator.
 	mkdir -p target/charts
-	$(HELM) package deploy/helm/$(PROJECT_NAME) --version $(VERSION) --app-version $(VERSION) --destination target/charts
-	$(HELM) push target/charts/$(PROJECT_NAME)-$(VERSION).tgz $(OCI_REGISTRY)
-
+	"$(HELM)" package deploy/helm/$(PROJECT_NAME) --version $(VERSION) --app-version $(VERSION) --destination target/charts
+	"$(HELM)" push target/charts/$(PROJECT_NAME)-$(VERSION).tgz $(OCI_REGISTRY)
 
 ##@ Deployment
 
@@ -168,24 +182,24 @@ endif
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	# add --server-side=true to fix "is invalid: metadata.annotations: Too long: must have at most 262144 bytes"
-	# ref: https://stackoverflow.com/a/70083579
-	$(KUSTOMIZE) build config/crd | kubectl apply --server-side=true -f -
+	@out="$$( "$(KUSTOMIZE)" build config/crd 2>/dev/null || true )"; \
+	if [ -n "$$out" ]; then echo "$$out" | "$(KUBECTL)" apply -f -; else echo "No CRDs to install; skipping."; fi
 
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@out="$$( "$(KUSTOMIZE)" build config/crd 2>/dev/null || true )"; \
+	if [ -n "$$out" ]; then echo "$$out" | "$(KUBECTL)" delete --ignore-not-found=$(ignore-not-found) -f -; else echo "No CRDs to delete; skipping."; fi
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	# add --server-side=true to fix "is invalid: metadata.annotations: Too long: must have at most 262144 bytes"
-	# ref: https://stackoverflow.com/a/70083579
-	$(KUSTOMIZE) build config/default | kubectl apply --server-side=true -f -
+	cd config/manager && "$(KUSTOMIZE)" edit set image controller=${IMG}
+	@out="$$( "$(KUSTOMIZE)" build config/default 2>/dev/null || true )"; \
+	if [ -n "$$out" ]; then echo "$$out" | "$(KUBECTL)" apply -f -; else echo "Nothing to deploy; skipping."; fi
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@out="$$( "$(KUSTOMIZE)" build config/default 2>/dev/null || true )"; \
+	if [ -n "$$out" ]; then echo "$$out" | "$(KUBECTL)" delete --ignore-not-found=$(ignore-not-found) -f -; else echo "Nothing to undeploy; skipping."; fi
 
 ##@ Dependencies
 
@@ -204,8 +218,12 @@ HELM = $(LOCALBIN)/helm
 KIND = $(LOCALBIN)/kind
 
 ## Tool Versions
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+# The version only effects unit tests.
+# You can find the list of released envtest-k8s versions with `Release envtest` from https://github.com/kubernetes-sigs/controller-tools/releases
+ENVTEST_K8S_VERSION = 1.32.0
 KUSTOMIZE_VERSION ?= v5.6.0
-CONTROLLER_TOOLS_VERSION ?= v0.17.1
+CONTROLLER_TOOLS_VERSION ?= v0.19.0
 ENVTEST_VERSION ?= release-0.20
 GOLANGCI_LINT_VERSION ?= v2.0.2
 HELM_VERSION ?= v3.17.0
@@ -222,7 +240,7 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
 
 .PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
+setup-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
