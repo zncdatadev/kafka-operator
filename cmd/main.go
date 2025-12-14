@@ -22,9 +22,6 @@ import (
 	"fmt"
 	"os"
 
-	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -36,7 +33,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	kafkav1alpha1 "github.com/zncdatadev/kafka-operator/api/v1alpha1"
 	"github.com/zncdatadev/kafka-operator/internal/controller"
@@ -97,6 +96,7 @@ func main() {
 		fmt.Println(importedVersion)
 		os.Exit(0)
 	}
+
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
