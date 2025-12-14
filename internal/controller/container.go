@@ -147,8 +147,8 @@ func (d *KafkaContainerBuilder) VolumeMount() []corev1.VolumeMount {
 func (d *KafkaContainerBuilder) LivenessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		FailureThreshold:    6,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       10,
+		InitialDelaySeconds: 20,
+		PeriodSeconds:       30,
 		SuccessThreshold:    1,
 		TimeoutSeconds:      5,
 		ProbeHandler: corev1.ProbeHandler{
@@ -160,8 +160,8 @@ func (d *KafkaContainerBuilder) LivenessProbe() *corev1.Probe {
 func (d *KafkaContainerBuilder) ReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		FailureThreshold:    3,
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
+		InitialDelaySeconds: 20,
+		PeriodSeconds:       30,
 		SuccessThreshold:    1,
 		TimeoutSeconds:      1,
 		ProbeHandler: corev1.ProbeHandler{

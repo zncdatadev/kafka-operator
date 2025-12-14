@@ -1,0 +1,200 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: smoke-observability
+spec:
+  steps:
+  # 1. Install zookeeper cluster
+  - name: install zookeeper cluster
+    try:
+    - apply:
+        file: ../../setup/zookeeper.yaml
+    - assert:
+        file: ../../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 120s
+    catch:
+      - podLogs:
+          name: zookeepercluster-sample-0
+          container: server
+      - describe:
+          apiVersion: zookeeper.kubedoop.dev/v1alpha1
+          kind: ZookeeperCluster
+          name: zookeepercluster-sample
+  # 2. Install Kafka cluster
+  - name: install kafka cluster
+    try:
+      - apply:
+          file: kafka.yaml
+      - assert:
+          file: kafka-assert.yaml
+      - assert:
+          timeout: 300s
+          resource:
+            kind: StatefulSet
+            apiVersion: apps/v1
+            metadata:
+              name: kafkacluster-sample-broker-default
+              namespace: ($namespace)
+            status:
+              readyReplicas: 3
+
+  # 3. Verify metrics port connectivity and format
+  - name: verify metrics connectivity
+    try:
+      - script:
+          env:
+          - name: NAMESPACE
+            value: ($namespace)
+          content: |
+            #!/bin/bash
+            set -ex
+
+            # Get all Kafka broker pods
+            echo "Namespace: $NAMESPACE"
+            PODS=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=broker,app.kubernetes.io/instance=kafkacluster-sample -o jsonpath='{.items[*].metadata.name}')
+            echo "Found pods: $PODS"
+
+            for POD in $PODS; do
+              echo "Testing Pod: $POD"
+
+              # Port-forward to pod
+              kubectl port-forward -n "$NAMESPACE" "$POD" 9606:9606 > /dev/null 2>&1 &
+              PF_PID=$!
+              sleep 2
+
+              trap "kill $PF_PID 2>/dev/null || true" EXIT
+
+              # Test metrics endpoint accessibility
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9606/metrics)
+              if [[ "$HTTP_CODE" != "200" ]]; then
+                echo "ERROR: Failed to access metrics endpoint, HTTP code: $HTTP_CODE"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              # Fetch metrics
+              METRICS=$(curl -s http://localhost:9606/metrics)
+
+              # Verify Prometheus format
+              if ! echo "$METRICS" | grep -q "# TYPE"; then
+                echo "ERROR: Missing Prometheus format (# TYPE)"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              # Verify JVM metrics present
+              if ! echo "$METRICS" | grep -q "jvm_"; then
+                echo "ERROR: Missing JVM metrics"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              # Verify Kafka-specific metrics
+              if ! echo "$METRICS" | grep -q "kafka_"; then
+                echo "WARNING: Expected Kafka-specific metrics not found"
+              fi
+
+              # Verify specific metrics (arbitrary metric to ensure data is present)
+              if ! echo "$METRICS" | grep -q "jvm_memory_used_bytes"; then
+                echo "WARNING: Expected metric 'jvm_memory_used_bytes' not found"
+              fi
+
+              echo "✓ Pod $POD metrics OK"
+
+              # Cleanup
+              kill $PF_PID 2>/dev/null || true
+              sleep 1
+            done
+
+            echo "✓ All pods metrics verified"
+
+  # 4. Install Prometheus
+  - name: install prometheus
+    try:
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            #!/bin/bash
+            set -ex
+
+            echo "=== Environment Check ==="
+            echo "NAMESPACE variable: '$NAMESPACE'"
+            echo "NAMESPACE length: ${#NAMESPACE}"
+            if [ -z "$NAMESPACE" ]; then
+              echo "ERROR: NAMESPACE is empty!"
+              exit 1
+            fi
+
+            helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+            helm repo update
+
+            echo "=== Installing Prometheus ==="
+            echo "Will install to namespace: $NAMESPACE"
+
+            helm upgrade --install prometheus prometheus-community/prometheus \
+              --version 25.3.1 \
+              --namespace "$NAMESPACE" \
+              --create-namespace \
+              -f prometheus-values.yaml \
+              --wait --timeout 5m
+
+  # 5. Verify Prometheus targets
+  - name: verify prometheus targets
+    try:
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            #!/bin/bash
+            set -e
+
+            # Wait for Prometheus server pod
+            kubectl wait --for=condition=Ready pod -l app=prometheus,component=server -n "$NAMESPACE" --timeout=300s 2>/dev/null || true
+            sleep 3
+
+            # Port-forward
+            kubectl port-forward -n "$NAMESPACE" svc/prometheus-server 9090:80 > /dev/null 2>&1 &
+            PF_PID=$!
+            sleep 2
+
+            trap "kill $PF_PID 2>/dev/null || true" EXIT
+
+            # Check targets
+            TARGETS=$(curl -s http://localhost:9090/api/v1/targets)
+
+            echo "=== Checking Prometheus Targets ==="
+
+            # Check if we have any active targets
+            ACTIVE=$(echo "$TARGETS" | grep -o '"state":"up"' | wc -l)
+            echo "Total active targets: $ACTIVE"
+
+            if [ "$ACTIVE" -eq 0 ]; then
+              echo "WARNING: No active targets found"
+            fi
+
+            # Check for Kafka targets
+            echo "Looking for Kafka targets..."
+
+            if echo "$TARGETS" | grep -q "kafkacluster-sample"; then
+              echo "✓ Found Kafka target"
+
+              # Verify target is UP
+              if echo "$TARGETS" | grep "kafkacluster-sample" | grep -q '"health":"up"'; then
+                echo "✓ Kafka target is UP"
+              else
+                echo "WARNING: Kafka target found but not UP"
+                echo "$TARGETS" | grep "kafkacluster-sample" | head -20
+              fi
+            else
+              echo "ERROR: Kafka target not found in Prometheus"
+              echo "Available targets:"
+              echo "$TARGETS" | grep -o '"job":"[^"]*"' | sort | uniq
+              exit 1
+            fi
+
+            echo "✓ Prometheus targets verification complete"
