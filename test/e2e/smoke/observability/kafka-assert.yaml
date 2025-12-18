@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafkacluster-sample-broker-default-metrics
+  labels:
+    prometheus.io/scrape: "true"
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9606"
+    prometheus.io/scheme: "http"
+spec:
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: 9606
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/instance: kafkacluster-sample
+    app.kubernetes.io/component: broker
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafkacluster-sample-broker-default
+status:
+  availableReplicas: 3
+  replicas: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafkacluster-sample
