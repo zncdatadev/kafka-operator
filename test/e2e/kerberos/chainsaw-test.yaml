@@ -80,7 +80,7 @@ spec:
   - name: install kafka
     try:
     - apply:
-        file: krb5-secretclass.yaml
+        file: krb5-auth.yaml
     - apply:
         file: kafka.yaml
     - assert:
