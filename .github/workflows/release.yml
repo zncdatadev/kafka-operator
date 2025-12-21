@@ -329,7 +329,7 @@ jobs:
           done
 
           # Install packaged operator chart
-          helm install --create-namespace --namespace kafka-operators --wait kafka-operator ./target/charts/kafka-operator-$VERSION.tgz
+          helm install --create-namespace --namespace kafka-operator --wait kafka-operator ./target/charts/kafka-operator-$VERSION.tgz
 
           # E2E tests
           make chainsaw
