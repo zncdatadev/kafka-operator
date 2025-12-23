@@ -142,7 +142,12 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-kind-kubeconfig*
+# Ignore kubeconfig files
+.kubeconfig*
+
+# Ignore docker digest files
+docker-digests.json
+
 kind-config-local.yaml
 # test
 ginkgo.report
@@ -152,8 +157,6 @@ cmd/__debug*
 
 # ai code local
 .codiumai.toml
-
-docker-digests.json
 
 # helm charts
 # helm package directory
