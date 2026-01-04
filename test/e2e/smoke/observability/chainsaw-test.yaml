@@ -78,26 +78,26 @@ spec:
               METRICS=$(curl -s http://localhost:9606/metrics)
 
               # Verify Prometheus format
-              if ! echo "$METRICS" | grep -q "# TYPE"; then
+              if ! echo "$METRICS" | grep -q "# TYPE" > /dev/null 2>&1; then
                 echo "ERROR: Missing Prometheus format (# TYPE)"
                 kill $PF_PID 2>/dev/null || true
                 exit 1
               fi
 
               # Verify JVM metrics present
-              if ! echo "$METRICS" | grep -q "jvm_"; then
+              if ! echo "$METRICS" | grep -q "jvm_" > /dev/null 2>&1; then
                 echo "ERROR: Missing JVM metrics"
                 kill $PF_PID 2>/dev/null || true
                 exit 1
               fi
 
               # Verify Kafka-specific metrics
-              if ! echo "$METRICS" | grep -q "kafka_"; then
+              if ! echo "$METRICS" | grep -q "kafka_" > /dev/null 2>&1; then
                 echo "WARNING: Expected Kafka-specific metrics not found"
               fi
 
               # Verify specific metrics (arbitrary metric to ensure data is present)
-              if ! echo "$METRICS" | grep -q "jvm_memory_used_bytes"; then
+              if ! echo "$METRICS" | grep -q "jvm_memory_used_bytes" > /dev/null 2>&1; then
                 echo "WARNING: Expected metric 'jvm_memory_used_bytes' not found"
               fi
 
