@@ -103,7 +103,7 @@ func (r *BrokerReconciler) RegisterResourceWithRoleGroup(
 	brokerConfig *kafkav1alpha1.BrokersConfigSpec,
 ) ([]reconciler.Reconciler, error) {
 
-	var reconcilers = make([]reconciler.Reconciler, 0)
+	var reconcilers = make([]reconciler.Reconciler, 0, 5)
 
 	// svc
 	svc := NewRoleGroupService(r.Client, roleGroupInfo)

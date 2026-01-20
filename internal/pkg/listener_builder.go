@@ -48,7 +48,7 @@ func NewListenerBuilder(
 }
 
 func containerPortToListenerPort(port []corev1.ContainerPort) []listenerv1alpha1.PortSpec {
-	ports := make([]listenerv1alpha1.PortSpec, 0)
+	ports := make([]listenerv1alpha1.PortSpec, 0, len(port))
 	for _, p := range port {
 		ports = append(ports, listenerv1alpha1.PortSpec{
 			Name:     p.Name,
