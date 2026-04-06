@@ -155,8 +155,9 @@ cover.out
 cmd/__debug*
 **/coverage
 
-# ai code local
+# ai codin
 .codiumai.toml
+.omc
 
 # helm charts
 # helm package directory
