@@ -171,13 +171,14 @@ spec:
 
             trap "kill $PF_PID 2>/dev/null || true" EXIT
 
-            # Check targets
-            TARGETS=$(curl -s http://localhost:9090/api/v1/targets)
+            # Check targets (save to temp file to avoid set -x echoing full JSON)
+            TARGETS_FILE=$(mktemp)
+            curl -s http://localhost:9090/api/v1/targets > "$TARGETS_FILE" 2>/dev/null
 
             echo "=== Checking Prometheus Targets ==="
 
             # Check if we have any active targets
-            ACTIVE=$(echo "$TARGETS" | grep -o '"state":"up"' | wc -l)
+            ACTIVE=$(grep -o '"state":"up"' "$TARGETS_FILE" | wc -l)
             echo "Total active targets: $ACTIVE"
 
             if [ "$ACTIVE" -eq 0 ]; then
@@ -187,21 +188,23 @@ spec:
             # Check for Kafka targets
             echo "Looking for Kafka targets..."
 
-            if echo "$TARGETS" | grep -q "kafkacluster-sample"; then
+            if grep -q "kafkacluster-sample" "$TARGETS_FILE"; then
               echo "✓ Found Kafka target"
 
               # Verify target is UP
-              if echo "$TARGETS" | grep "kafkacluster-sample" | grep -q '"health":"up"'; then
+              if grep "kafkacluster-sample" "$TARGETS_FILE" | grep -q '"health":"up"'; then
                 echo "✓ Kafka target is UP"
               else
                 echo "WARNING: Kafka target found but not UP"
-                echo "$TARGETS" | grep "kafkacluster-sample" | head -20
               fi
             else
               echo "ERROR: Kafka target not found in Prometheus"
               echo "Available targets:"
-              echo "$TARGETS" | grep -o '"job":"[^"]*"' | sort | uniq
+              grep -o '"job":"[^"]*"' "$TARGETS_FILE" | sort | uniq
+              rm -f "$TARGETS_FILE"
               exit 1
             fi
+
+            rm -f "$TARGETS_FILE"
 
             echo "✓ Prometheus targets verification complete"
