@@ -212,12 +212,12 @@ jobs:
           # Exclude -dev pre-release tags only when looking for the previous tag,
           # not when matching the current tag itself
           CURRENT_TAG="${{ github.ref_name }}"
-          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -A1 "^${CURRENT_TAG}$" | tail -n1 | grep -v '\\-dev$')
+          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -A1 "^${CURRENT_TAG}$" | tail -n1 | grep -v -- '-dev$')
 
           # If the -dev tag itself was the only match (no previous stable tag found),
           # try again excluding -dev to find the actual previous stable release
           if [[ -z "$PREVIOUS_TAG" ]]; then
-            PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -v '\\-dev$' | grep -A1 "^${CURRENT_TAG}$" | tail -n1)
+            PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -v -- '-dev$' | grep -A1 "^${CURRENT_TAG}$" | tail -n1)
           fi
 
           # First release detection
