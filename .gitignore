@@ -166,3 +166,4 @@ target
 
 # ignore any local file
 **/*local*
+.worktree/
