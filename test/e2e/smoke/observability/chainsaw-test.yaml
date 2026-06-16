@@ -66,10 +66,20 @@ spec:
 
               trap "kill $PF_PID 2>/dev/null || true" EXIT
 
-              # Test metrics endpoint accessibility
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9606/metrics)
+              # Retry curl until port-forward is ready (up to 30s)
+              MAX_RETRIES=15
+              RETRY_INTERVAL=2
+              HTTP_CODE=""
+              for i in $(seq 1 $MAX_RETRIES); do
+                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9606/metrics)
+                if [ "$HTTP_CODE" = "200" ]; then
+                  break
+                fi
+                echo "  Attempt $i/$MAX_RETRIES: HTTP $HTTP_CODE, retrying in ${RETRY_INTERVAL}s..."
+                sleep $RETRY_INTERVAL
+              done
               if [ "$HTTP_CODE" != "200" ]; then
-                echo "ERROR: Failed to access metrics endpoint, HTTP code: $HTTP_CODE"
+                echo "ERROR: Failed to access metrics endpoint after $((MAX_RETRIES * RETRY_INTERVAL))s, HTTP code: $HTTP_CODE"
                 kill $PF_PID 2>/dev/null || true
                 exit 1
               fi
