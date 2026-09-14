@@ -1,0 +1,24 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: broker-lifecycle
+spec:
+  steps:
+    - name: install dependencies and two independent clusters
+      try:
+        - apply:
+            file: ../../setup/zookeeper.yaml
+        - assert:
+            file: ../../setup/zookeeper-assert.yaml
+        - apply:
+            file: kafka.yaml
+    - name: exercise lifecycle and isolation
+      try:
+        - script:
+            timeout: 1200s
+            content: bash lifecycle.sh
+      catch:
+        - script:
+            content: |
+              kubectl -n "$NAMESPACE" get kafkacluster,sts,pod,svc,pvc,pdb,listeners -o wide
+              kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp

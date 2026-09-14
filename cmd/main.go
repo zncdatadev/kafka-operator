@@ -26,11 +26,15 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
+	opcommon "github.com/zncdatadev/operator-go/pkg/common"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -50,9 +54,9 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(kafkav1alpha1.AddToScheme(scheme))
-
+	// The bootstrap Listener CRs are applied through the GenericReconciler, so the type
+	// must be registered in the manager scheme.
 	utilruntime.Must(listenerv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -92,19 +96,12 @@ func main() {
 	flag.Parse()
 
 	if showVersion {
-		importedVersion := version.NewAppInfo("kafka-operator").String()
-		fmt.Println(importedVersion)
+		fmt.Println(version.NewAppInfo("kafka-operator").String())
 		os.Exit(0)
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
 	disableHTTP2 := func(c *tls.Config) {
 		setupLog.Info("disabling http/2")
 		c.NextProtos = []string{"http/1.1"}
@@ -114,16 +111,13 @@ func main() {
 		tlsOpts = append(tlsOpts, disableHTTP2)
 	}
 
-	// Initial webhook TLS options
-	webhookTLSOpts := tlsOpts
 	webhookServerOptions := webhook.Options{
-		TLSOpts: webhookTLSOpts,
+		TLSOpts: tlsOpts,
 	}
 
 	if len(webhookCertPath) > 0 {
 		setupLog.Info("Initializing webhook certificate watcher using provided certificates",
 			"webhook-cert-path", webhookCertPath, "webhook-cert-name", webhookCertName, "webhook-cert-key", webhookCertKey)
-
 		webhookServerOptions.CertDir = webhookCertPath
 		webhookServerOptions.CertName = webhookCertName
 		webhookServerOptions.KeyName = webhookCertKey
@@ -131,10 +125,6 @@ func main() {
 
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
-	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
-	// More info:
-	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/metrics/server
-	// - https://book.kubebuilder.io/reference/metrics.html
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   metricsAddr,
 		SecureServing: secureMetrics,
@@ -142,25 +132,12 @@ func main() {
 	}
 
 	if secureMetrics {
-		// FilterProvider is used to protect the metrics endpoint with authn/authz.
-		// These configurations ensure that only authorized users and service accounts
-		// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
-		// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.22.4/pkg/metrics/filters#WithAuthenticationAndAuthorization
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
-	// If the certificate is not specified, controller-runtime will automatically
-	// generate self-signed certificates for the metrics server. While convenient for development and testing,
-	// this setup is not recommended for production.
-	//
-	// TODO(user): If you enable certManager, uncomment the following lines:
-	// - [METRICS-WITH-CERTS] at config/default/kustomization.yaml to generate and use certificates
-	// managed by cert-manager for the metrics server.
-	// - [PROMETHEUS-WITH-CERTS] at config/prometheus/kustomization.yaml for TLS certification.
 	if len(metricsCertPath) > 0 {
 		setupLog.Info("Initializing metrics certificate watcher using provided certificates",
 			"metrics-cert-path", metricsCertPath, "metrics-cert-name", metricsCertName, "metrics-cert-key", metricsCertKey)
-
 		metricsServerOptions.CertDir = metricsCertPath
 		metricsServerOptions.CertName = metricsCertName
 		metricsServerOptions.KeyName = metricsCertKey
@@ -172,30 +149,70 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		WebhookServer:          webhookServer,
-		LeaderElectionID:       "6e8ac606.kubedoop.dev",
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
+		// Keep the pre-refactor Lease name: changing it would let old and new pods each
+		// hold "leadership" on different Leases during a rolling upgrade (split-brain).
+		LeaderElectionID: "6e8ac606.kubedoop.dev",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	if err = (&controller.KafkaClusterReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Log:    setupLog,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KafkaCluster")
+	// Setup KafkaCluster controller using GenericReconciler
+	kafkaHandler := controller.NewKafkaRoleGroupHandler(mgr.GetScheme())
+
+	// Extension registry is per-CR-type and owned by exactly one reconciler; the
+	// discovery extension publishes the discovery ConfigMaps (bootstrap servers
+	// aggregated from the bootstrap Listeners).
+	extensionRegistry := opcommon.NewExtensionRegistry[*kafkav1alpha1.KafkaCluster]()
+	extensionRegistry.RegisterClusterExtension(controller.NewDiscoveryExtension(mgr.GetScheme()))
+
+	kafkaReconciler, err := reconciler.NewGenericReconciler(
+		&reconciler.GenericReconcilerConfig[*kafkav1alpha1.KafkaCluster]{
+			Client: mgr.GetClient(),
+			// Uncached: used to refresh the resourceVersion after a conflicting status
+			// write, which the informer cache is by definition too stale to serve.
+			APIReader: mgr.GetAPIReader(),
+			Scheme:    mgr.GetScheme(),
+			// operator-go's Recorder field is the (deprecated) record.EventRecorder; the
+			// replacement GetEventRecorder returns the incompatible events.EventRecorder.
+			Recorder:         mgr.GetEventRecorderFor("kafka-cluster-controller"), //nolint:staticcheck
+			RoleGroupHandler: kafkaHandler,
+			// The handler also declares the broker role, once per reconcile pass with the
+			// cr in hand — ports, primary container name, probes, log producers, config
+			// defaults. The workload ServiceAccount is framework-derived
+			// ("kafkacluster-<cluster>"); kafka pods call no Kubernetes API, so no
+			// WorkloadRBACRules.
+			RoleProvider: kafkaHandler,
+			// Kafka's derived config (default config files, heap from the effective
+			// memory limit) flows through the merge pipeline as the lowest layer; user
+			// overrides always win.
+			RoleGroupResolver: reconciler.RoleGroupResolverFunc[*kafkav1alpha1.KafkaCluster](
+				controller.ResolveRoleGroup),
+			// Read every reconcile, so an operator upgrade moves existing clusters onto
+			// the co-released product image
+			// ("{repo}/kafka:{productVersion}-kubedoop{operator build version}").
+			ImageResolution: reconciler.ImageResolution{
+				ProductName: kafkav1alpha1.DefaultProductName,
+				Defaults: commonsv1alpha1.ImageSpec{
+					Repo:            kafkav1alpha1.DefaultRepository,
+					ProductVersion:  kafkav1alpha1.DefaultProductVersion,
+					KubedoopVersion: version.BuildVersion,
+				},
+			},
+			ExtensionRegistry: extensionRegistry,
+			Prototype:         &kafkav1alpha1.KafkaCluster{},
+		})
+	if err != nil {
+		setupLog.Error(err, "unable to create GenericReconciler", "controller", "KafkaCluster")
+		os.Exit(1)
+	}
+	// ExtraOwns gives the bootstrap Listener CRs a watch AND registers their kind with the
+	// orphan cleaner, which reclaims a removed role group's labelled extras.
+	if err := kafkaReconciler.SetupWithManagerOpts(mgr, reconciler.SetupWithManagerOptions{
+		ExtraOwns: []ctrlclient.Object{&listenerv1alpha1.Listener{}},
+	}); err != nil {
+		setupLog.Error(err, "unable to setup controller", "controller", "KafkaCluster")
 		os.Exit(1)
 	}
 

@@ -167,3 +167,5 @@ target
 # ignore any local file
 **/*local*
 .worktree/
+# Resource snapshots and normalized diffs from the disposable upgrade test.
+/upgrade-evidence/

@@ -23,6 +23,9 @@ linters:
     - unparam
     - unused
   settings:
+    goconst:
+      # Test fixtures legitimately repeat short literals (secret classes, namespaces).
+      ignore-tests: true
     revive:
       rules:
         - name: comment-spacings

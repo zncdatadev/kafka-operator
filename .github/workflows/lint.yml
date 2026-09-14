@@ -41,4 +41,4 @@ jobs:
           # Pin the linter version so a new upstream release cannot break the
           # pipeline without a code change. Keep in sync with the Makefile's
           # GOLANGCI_LINT_VERSION.
-          version: v2.12.1
+          version: v2.12.2

@@ -20,6 +20,33 @@ spec:
         file: kafka.yaml
     - assert:
         file: kafka-assert.yaml
+  - name: mutate cluster after install
+    try:
+    # Day-2 operations must propagate to existing resources (operator-go#526): scale the
+    # role group down and push a config override, then assert both reach the live objects.
+    - script:
+        env:
+          - name: NAMESPACE
+            value: ($namespace)
+        content: |
+          kubectl -n $NAMESPACE patch kafkacluster kafkacluster-sample --type merge             -p '{"spec":{"brokers":{"roleGroups":{"default":{"replicas":2,"configOverrides":{"server.properties":{"log.retention.hours":"42"}}}}}}}'
+    - assert:
+        timeout: 180s
+        resource:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: kafkacluster-sample-broker-default
+          spec:
+            replicas: 2
+          status:
+            readyReplicas: 2
+    - script:
+        env:
+          - name: NAMESPACE
+            value: ($namespace)
+        content: |
+          kubectl -n $NAMESPACE get cm kafkacluster-sample-broker-default             -o jsonpath='{.data.server\.properties}' | grep -q '^log.retention.hours=42$'
   - name: access kafka
     try:
       - apply:

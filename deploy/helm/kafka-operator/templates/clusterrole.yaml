@@ -5,12 +5,15 @@ metadata:
   name: {{ include "operator.fullname" . }}
   labels:
     {{- include "operator.labels" . | nindent 4 }}
+# Keep in step with config/rbac/role.yaml (generated from the kubebuilder RBAC
+# markers in internal/controller): CI's chart-e2e installs the operator from this
+# chart, so a grant missing here fails reconciles that pass in the manifests-based
+# chainsaw jobs.
 rules:
 - apiGroups:
   - ""
   resources:
   - configmaps
-  - serviceaccounts
   - services
   verbs:
   - create
@@ -19,6 +22,33 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - delete
+  - get
+  - list
   - watch
 - apiGroups:
   - ""
@@ -41,9 +71,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kafka.kubedoop.dev
+  - policy
   resources:
-  - kafkaclusters
+  - poddisruptionbudgets
   verbs:
   - create
   - delete
@@ -51,6 +81,14 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - kafka.kubedoop.dev
+  resources:
+  - kafkaclusters
+  verbs:
+  - get
+  - list
   - watch
 - apiGroups:
   - kafka.kubedoop.dev

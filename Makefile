@@ -217,7 +217,7 @@ ENVTEST_K8S_VERSION ?= $(shell v='$(call gomodver,k8s.io/api)'; \
   [ -n "$$v" ] || { echo "Set ENVTEST_K8S_VERSION manually (k8s.io/api replace has no tag)" >&2; exit 1; }; \
   printf '%s\n' "$$v" | sed -E 's/^v?[0-9]+\.([0-9]+).*/1.\1/')
 
-GOLANGCI_LINT_VERSION ?= v2.12.1
+GOLANGCI_LINT_VERSION ?= v2.12.2
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -299,7 +299,7 @@ CHAINSAW_KUBECONFIG ?= .kubeconfig
 # When run `kind create --image kindest/node:v${KIND_K8S_VERSION}`, the node image version of k8s will be used to create the kind cluster,
 # and the target kubeconfig file will be named as `$(CHAINSAW_KUBECONFIG)` (default: `.kubeconfig`).
 # So if you want to use the target cluster, run `export KUBECONFIG=$(CHAINSAW_KUBECONFIG)` (default: `.kubeconfig`).
-KIND_K8S_VERSION ?= 1.26.15
+KIND_K8S_VERSION ?= 1.33.7
 # The kind node image can found in https://github.com/kubernetes-sigs/kind/releases.
 KIND_IMAGE ?= kindest/node:v${KIND_K8S_VERSION}
 # Define operator dependencies to be installed before running chainsaw tests.
@@ -333,6 +333,14 @@ setup-chainsaw-cluster: ## Set up a Kind cluster for e2e tests if it does not ex
 		done; \
 	fi
 
+	@# secret-operator validates cross-namespace SecretClass references (secret-operator#358);
+	@# the default "tls" SecretClass keeps its CA secret in the operator namespace, so allow
+	@# test-namespace pods to reference it until the chart ships the annotation itself.
+	@if kubectl --kubeconfig $(CHAINSAW_KUBECONFIG) get secretclass tls >/dev/null 2>&1; then \
+		kubectl --kubeconfig $(CHAINSAW_KUBECONFIG) annotate secretclass tls \
+			"secrets.kubedoop.dev/allowed-namespaces=kubedoop-operators" --overwrite; \
+	fi
+
 .PHONY: setup-chainsaw-e2e
 setup-chainsaw-e2e: chainsaw docker-build ## Run the chainsaw setup
 	"$(KIND)" --name $(CHAINSAW_CLUSTER) load docker-image "$(IMG)"
@@ -359,6 +367,30 @@ cleanup-chainsaw-e2e: ## Run the chainsaw cleanup
 			"$(HELM)" uninstall --namespace kubedoop-operators $$dep; \
 		done; \
 	fi
+
+# A fixed pre-framework baseline makes the upgrade/rollback contract reproducible.
+UPGRADE_BASELINE_REF ?= d18d27f4578ad4f2acf25c3e4af36f5661ccf183
+UPGRADE_BASELINE_DIR ?= $(CURDIR)/.worktree/upgrade-baseline
+UPGRADE_BASELINE_IMAGE ?= kafka-operator:upgrade-baseline
+UPGRADE_EVIDENCE_DIR ?= $(CURDIR)/upgrade-evidence
+
+.PHONY: framework-upgrade-e2e
+framework-upgrade-e2e: kustomize docker-build ## Verify pre-framework upgrade and rollback with persisted Kafka messages on a fresh kind cluster.
+	@clusters="$$("$(KIND)" get clusters)" || exit 1; \
+		if printf '%s\n' "$$clusters" | grep -Fxq "$(CHAINSAW_CLUSTER)"; then \
+			echo "Use a fresh cluster name; inspect/delete the previous test cluster first." >&2; exit 1; \
+		fi
+	$(MAKE) setup-chainsaw-cluster
+	@if [ ! -d "$(UPGRADE_BASELINE_DIR)" ]; then \
+		git worktree add --detach "$(UPGRADE_BASELINE_DIR)" "$(UPGRADE_BASELINE_REF)"; \
+	fi
+	@test "$$(git -C "$(UPGRADE_BASELINE_DIR)" rev-parse HEAD)" = "$$(git rev-parse "$(UPGRADE_BASELINE_REF)")"
+	@test -z "$$(git -C "$(UPGRADE_BASELINE_DIR)" status --porcelain)"
+	$(MAKE) -C "$(UPGRADE_BASELINE_DIR)" docker-build IMG="$(UPGRADE_BASELINE_IMAGE)"
+	KUBECONFIG="$(abspath $(CHAINSAW_KUBECONFIG))" CHAINSAW_CLUSTER="$(CHAINSAW_CLUSTER)" \
+		UPGRADE_BASELINE_DIR="$(UPGRADE_BASELINE_DIR)" UPGRADE_BASELINE_IMAGE="$(UPGRADE_BASELINE_IMAGE)" \
+		UPGRADE_EVIDENCE_DIR="$(UPGRADE_EVIDENCE_DIR)" IMG="$(IMG)" PRODUCT_VERSION="$(PRODUCT_VERSION)" \
+		bash hack/test-framework-upgrade.sh
 
 .PHONY: cleanup-chainsaw-cluster
 cleanup-chainsaw-cluster: ## Tear down the Kind cluster used for chainsaw e2e tests

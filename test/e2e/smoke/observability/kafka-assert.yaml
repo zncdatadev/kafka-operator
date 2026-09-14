@@ -16,8 +16,9 @@ spec:
       protocol: TCP
       targetPort: metrics
   selector:
-    app.kubernetes.io/instance: kafkacluster-sample
-    app.kubernetes.io/component: broker
+    kafka.kubedoop.dev/cluster: kafkacluster-sample
+    kafka.kubedoop.dev/role: broker
+    kafka.kubedoop.dev/role-group: default
 ---
 apiVersion: apps/v1
 kind: StatefulSet

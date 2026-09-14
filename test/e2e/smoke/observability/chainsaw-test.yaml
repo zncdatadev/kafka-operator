@@ -169,6 +169,13 @@ spec:
             helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
             helm repo update
 
+            # Self-heal from a previous interrupted run on a reused cluster: the chart's
+            # cluster-scoped RBAC survives chainsaw's namespace deletion, and helm refuses
+            # to adopt objects whose release-namespace annotation points at the dead
+            # namespace. Harmless on a fresh (CI) cluster.
+            kubectl delete clusterrole prometheus-server --ignore-not-found
+            kubectl delete clusterrolebinding prometheus-server --ignore-not-found
+
             echo "=== Installing Prometheus ==="
             echo "Will install to namespace: $NAMESPACE"
 
@@ -178,6 +185,16 @@ spec:
               --create-namespace \
               -f prometheus-values.yaml \
               --wait --timeout 5m
+    cleanup:
+      # Uninstall via helm BEFORE chainsaw deletes the namespace, so the chart's
+      # cluster-scoped ClusterRole/ClusterRoleBinding are removed with the release
+      # instead of leaking into the next run.
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            helm uninstall prometheus --namespace "$NAMESPACE" --wait --timeout 2m || true
 
   # 5. Verify Prometheus targets
   - name: verify prometheus targets

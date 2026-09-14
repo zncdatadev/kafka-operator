@@ -17,11 +17,15 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/zncdatadev/operator-go/pkg/status"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+)
+
+const (
+	DefaultRepository     = "quay.io/zncdatadev"
+	DefaultProductVersion = "3.9.0"
+	DefaultProductName    = "kafka"
 )
 
 const (
@@ -31,45 +35,49 @@ const (
 )
 
 const (
+	// BrokerRoleName is the single Kafka role, used as the role key and component label value.
+	BrokerRoleName = "broker"
+
+	// KafkaContainerName is the main container name. It is significant: it must match the
+	// per-container logging key (logging.containers.kafka) and drives the log file name the
+	// Vector sidecar globs (<container>.stdout.log).
+	KafkaContainerName = "kafka"
+
+	// KerberosServiceName is the Kerberos service principal primary for Kafka.
+	KerberosServiceName = "kafka"
+)
+
+const (
 	ClientPortName       = "kafka"
 	SecureClientPortName = "kafka-tls"
 	InternalPortName     = "internal"
 	MetricsPortName      = "metrics"
 	BootstrapPortName    = "bootstrap"
 
-	ClientPort                = 9092
-	SecurityClientPort        = 9093
-	InternalPort              = 19092
-	SecurityInternalPort      = 19093
-	MetricsPort               = 9606
-	PodSvcClientNodePortMin   = 30092
-	PodSvcInternalNodePortMin = 31092
-	BootstrapPort             = 9094
-	BootstrapSecurePort       = 9095
+	ClientPort           = 9092
+	SecurityClientPort   = 9093
+	InternalPort         = 19092
+	SecurityInternalPort = 19093
+	MetricsPort          = 9606
+	BootstrapPort        = 9094
+	BootstrapSecurePort  = 9095
 )
 
 const (
-	ImageRepository = "quay.io/zncdatadev/kafka"
-	ImageTag        = "3.9.0-kubedoop0.0.0-dev"
-	ImagePullPolicy = corev1.PullIfNotPresent
+	// ListenerBrokerVolumeName is the per-broker listener CSI volume (mounted at
+	// /kubedoop/listener/listener-broker). Its name is referenced by the secret-operator
+	// scope annotation "listener-volume=listener-broker" on the TLS/Kerberos volumes.
+	ListenerBrokerVolumeName = "listener-broker"
+	// ListenerBootstrapVolumeName is the bootstrap listener CSI volume (mounted at
+	// /kubedoop/listener/listener-bootstrap), referencing the role group bootstrap Listener.
+	ListenerBootstrapVolumeName = "listener-bootstrap"
 
-	KubedoopKafkaDataDirName  = "data" // kafka log dirs
-	KubedoopLogConfigDirName  = "log-config"
-	KubedoopConfigDirName     = "config"
-	KubedoopLogDirName        = "log"
-	KubedoopListenerBroker    = "listener-broker"
-	KubedoopListenerBootstrap = "listener-bootstrap"
-	KubedoopKerberosName      = "listener-kerberos"
-
-	KubedoopRoot                 = "/kubedoop"
-	KubedoopDataDir              = KubedoopRoot + "/data"
-	KubedoopConfigDir            = KubedoopRoot + "/config"
-	KubedoopLogConfigDir         = KubedoopRoot + "/log_config"
-	KubedoopLogDir               = KubedoopRoot + "/log"
-	KubedoopListenerBrokerDir    = KubedoopRoot + "/listener-broker"
-	KubedoopListenerBootstrapDir = KubedoopRoot + "/listener-bootstrap"
-	KubedoopKerberosDir          = KubedoopRoot + "/kerberos"
-	KubedoopKerberosKrb5Path     = KubedoopKerberosDir + "/krb5.conf"
+	// KerberosVolumeName is the Kerberos keytab CSI volume (mounted at /kubedoop/mount/kerberos).
+	KerberosVolumeName = "kerberos"
+	// TLSKeystoreServerVolumeName is the server TLS keystore CSI volume.
+	TLSKeystoreServerVolumeName = "tls-keystore-server"
+	// TLSKeystoreInternalVolumeName is the internal (broker-to-broker) TLS keystore CSI volume.
+	TLSKeystoreInternalVolumeName = "tls-keystore-internal"
 )
 
 // +kubebuilder:object:root=true
@@ -80,8 +88,103 @@ type KafkaCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   KafkaClusterSpec `json:"spec,omitempty"`
-	Status status.Status    `json:"status,omitempty"`
+	Spec   KafkaClusterSpec   `json:"spec,omitempty"`
+	Status KafkaClusterStatus `json:"status,omitempty"`
+}
+
+// KafkaClusterStatus defines the observed state of KafkaCluster.
+type KafkaClusterStatus struct {
+	commonsv1alpha1.GenericClusterStatus `json:",inline"`
+}
+
+// ClusterInterface implementation
+
+// GetSpec adapts the Kafka spec to the framework's GenericClusterSpec.
+func (k *KafkaCluster) GetSpec() *commonsv1alpha1.GenericClusterSpec {
+	return k.Spec.ToGenericSpec()
+}
+
+// GetStatus returns the cluster status.
+func (k *KafkaCluster) GetStatus() *commonsv1alpha1.GenericClusterStatus {
+	return &k.Status.GenericClusterStatus
+}
+
+// VectorAggregatorConfigMapName implements reconciler.VectorAggregatorProvider so the framework
+// owns vector.yaml generation: when a role group enables the Vector agent, the GenericReconciler
+// resolves the aggregator address from this ConfigMap and renders vector.yaml into the role group
+// ConfigMap. Returns "" when unset (the framework then omits vector.yaml).
+func (k *KafkaCluster) VectorAggregatorConfigMapName() string {
+	if k.Spec.ClusterConfig == nil {
+		return ""
+	}
+	return k.Spec.ClusterConfig.VectorAggregatorConfigMapName
+}
+
+// ToGenericSpec adapts KafkaClusterSpec to the framework's GenericClusterSpec:
+// brokers -> Roles["broker"].
+func (s *KafkaClusterSpec) ToGenericSpec() *commonsv1alpha1.GenericClusterSpec {
+	result := &commonsv1alpha1.GenericClusterSpec{
+		ClusterOperation: s.ClusterOperation,
+	}
+
+	// spec.image passes through untouched: the framework folds it over the handler's
+	// ImageDefaults per field at reconcile time (user first), so the repo/version
+	// fallbacks live on the handler instead of being normalized into the spec here.
+	result.Image = s.Image
+
+	if s.Brokers == nil {
+		return result
+	}
+
+	roleSpec := commonsv1alpha1.RoleSpec{
+		RoleConfig: s.Brokers.Roleconfig,
+	}
+
+	if s.Brokers.Config != nil {
+		roleSpec.Config = s.Brokers.Config.RoleGroupConfigSpec
+	}
+
+	if s.Brokers.OverridesSpec != nil {
+		roleSpec.ConfigOverrides = s.Brokers.ConfigOverrides
+		roleSpec.EnvOverrides = s.Brokers.EnvOverrides
+		roleSpec.CliOverrides = s.Brokers.CliOverrides
+		roleSpec.PodOverrides = s.Brokers.PodOverrides
+	}
+
+	roleGroups := make(map[string]commonsv1alpha1.RoleGroupSpec)
+	for name, rg := range s.Brokers.RoleGroups {
+		if rg == nil {
+			continue
+		}
+		roleGroups[name] = adaptRoleGroup(rg)
+	}
+	roleSpec.RoleGroups = roleGroups
+
+	result.Roles = map[string]commonsv1alpha1.RoleSpec{
+		BrokerRoleName: roleSpec,
+	}
+
+	return result
+}
+
+// adaptRoleGroup converts a Kafka role group spec to the framework's generic shape.
+func adaptRoleGroup(rg *BrokersRoleGroupSpec) commonsv1alpha1.RoleGroupSpec {
+	adapted := commonsv1alpha1.RoleGroupSpec{}
+	// Always carry the stored value: an explicit `replicas: 0` (scale-down) must reach the
+	// StatefulSet — mapping it to nil would let the framework default it back to 1. Omitted
+	// replicas are defaulted to 1 by the CRD before they ever get here.
+	replicas := rg.Replicas
+	adapted.Replicas = &replicas
+	if rg.Config != nil {
+		adapted.Config = rg.Config.RoleGroupConfigSpec
+	}
+	if rg.OverridesSpec != nil {
+		adapted.ConfigOverrides = rg.ConfigOverrides
+		adapted.EnvOverrides = rg.EnvOverrides
+		adapted.CliOverrides = rg.CliOverrides
+		adapted.PodOverrides = rg.PodOverrides
+	}
+	return adapted
 }
 
 // +kubebuilder:object:root=true
@@ -97,7 +200,7 @@ type KafkaClusterList struct {
 type KafkaClusterSpec struct {
 	// +kubebuilder:validation:Optional
 	// +default:value={"repo": "quay.io/zncdatadev", "pullPolicy": "IfNotPresent"}
-	Image *ImageSpec `json:"image,omitempty"`
+	Image *commonsv1alpha1.ImageSpec `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Required
 	ClusterConfig *ClusterConfigSpec `json:"clusterConfig,omitempty"`
@@ -123,7 +226,7 @@ type ClusterConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	VectorAggregatorConfigMapName string `json:"vectorAggregatorConfigMapName,omitempty"`
 
-	// +kubebuilder:validation:required
+	// +kubebuilder:validation:Required
 	ZookeeperConfigMapName string `json:"zookeeperConfigMapName,omitempty"`
 }
 
@@ -185,7 +288,7 @@ type BrokersRoleGroupSpec struct {
 	// +kubebuilder:default:=1
 	Replicas int32 `json:"replicas,omitempty"`
 
-	// +kubebuilder:validation：Optional
+	// +kubebuilder:validation:Optional
 	Config *BrokersConfigSpec `json:"config,omitempty"`
 
 	*commonsv1alpha1.OverridesSpec `json:",inline"`
@@ -195,9 +298,11 @@ type BrokersConfigSpec struct {
 	*commonsv1alpha1.RoleGroupConfigSpec `json:",inline"`
 
 	// The ListenerClass used for connecting to brokers. Should use a direct connection ListenerClass to minimize cost
-	// and minimize performance overhead (such as `cluster-internal` or `external-unstable`)
+	// and minimize performance overhead (such as `cluster-internal` or `external-unstable`).
+	// Defaults to `cluster-internal` at consumption time — no CRD default: this block is folded
+	// role -> role group, and a structural default here would make any role group declaring
+	// `config` silently override the role's value (see operator-go #573/#580).
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="cluster-internal"
 	BrokerListenerClass string `json:"brokerListenerClass,omitempty"`
 
 	// The ListenerClass used for bootstrapping new clients. Should use a stable ListenerClass to avoid unnecessary client restarts (such as `cluster-internal` or `external-stable`).
@@ -208,10 +313,6 @@ type BrokersConfigSpec struct {
 	// Please note that this can be shortened by the `maxCertificateLifetime` setting on the SecretClass issuing the TLS certificate.
 	// +kubebuilder:validation:Optional
 	RequestedSecretLifeTime string `json:"requestedSecretLifeTime,omitempty"`
-}
-type ConfigOverridesSpec struct {
-	Server   map[string]string `json:"server.properties,omitempty"`
-	Security map[string]string `json:"security.properties,omitempty"`
 }
 
 func init() {

@@ -65,3 +65,34 @@ jobs:
           CHAINSAW_KUBECONFIG: kind-kubeconfig-${{ matrix.k8s-version }}
           PRODUCT_VERSION: ${{ matrix.product-version }}
         run: make chainsaw-e2e
+
+  framework-upgrade:
+    name: Framework upgrade and rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      KIND_K8S_VERSION: '1.35.0'
+      CHAINSAW_CLUSTER: kafka-framework-upgrade
+      CHAINSAW_KUBECONFIG: .kubeconfig-upgrade
+      PRODUCT_VERSION: '3.9.0'
+    steps:
+      - name: Clone the code and the fixed pre-framework baseline
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Verify messages and data volumes across upgrade and rollback
+        run: make framework-upgrade-e2e
+      - name: Save migration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: framework-upgrade-evidence
+          path: upgrade-evidence/
+          if-no-files-found: warn
+      - name: Delete the disposable cluster
+        if: always()
+        run: make cleanup-chainsaw-cluster

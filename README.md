@@ -7,6 +7,11 @@
 
 This is a Kubernetes operator to manage Apache Kafka clusters.
 
+The current operator manages ZooKeeper-backed Kafka 3.x broker role groups.
+For existing clusters managed by operator-go v0.12.6, the framework migration
+requires a maintenance window and workload recreation while retaining data PVCs.
+Read the [upgrade and rollback procedure](docs/upgrading-to-framework.md) before upgrading.
+
 It's part of the kubedoop Data Platform, a modular open source data platform built on Kubernetes that provides Kubernetes native deployment
 and management of popular open source data apps like Apache Kafka, Apache Doris, Apache Kyuubi, Trino or Apache Spark, all working
 together seamlessly. Based on Kubernetes, it runs everywhere – on prem or in the cloud.

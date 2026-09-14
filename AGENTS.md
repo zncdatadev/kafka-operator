@@ -3,7 +3,7 @@
 # kafka-operator
 
 ## Purpose
-Manages Apache Kafka deployments on Kubernetes. Handles creation, configuration, and lifecycle management of Kafka clusters including broker and controller (KRaft) components.
+Manages ZooKeeper-backed Apache Kafka 3.x deployments on Kubernetes. Handles broker role groups, configuration, persistent storage, listeners, TLS, logging, and lifecycle management. KRaft controller roles are not implemented.
 
 ## Key Files
 | File | Description |
@@ -21,7 +21,6 @@ Manages Apache Kafka deployments on Kubernetes. Handles creation, configuration,
 | `config/` | Kubernetes manifests and kustomize configs |
 | `deploy/` | Helm chart for operator deployment |
 | `internal/controller/` | Reconciliation controllers |
-| `internal/pkg/` | Shared internal packages |
 | `internal/security/` | TLS and authentication helpers |
 | `internal/util/` | Utility functions |
 | `test/e2e/` | End-to-end test suites |
@@ -36,9 +35,9 @@ Manages Apache Kafka deployments on Kubernetes. Handles creation, configuration,
 - Go module: `github.com/zncdatadev/kafka-operator`
 
 ### Testing Requirements
-- E2E tests in `test/e2e/`
-- Requires a running Kubernetes cluster
-- Uses Ginkgo/Gomega test framework
+- Unit tests use Ginkgo/Gomega; `make test` provisions envtest assets.
+- Chainsaw E2E tests in `test/e2e/` require an isolated kind cluster.
+- `make framework-upgrade-e2e` verifies pre-framework upgrade and rollback with retained messages and data PVCs; use a separate empty kind cluster.
 
 ### Common Patterns
 - Controllers in `internal/controller/`
@@ -49,13 +48,13 @@ Manages Apache Kafka deployments on Kubernetes. Handles creation, configuration,
 ## Dependencies
 
 ### Internal
-- `../operator-go` — Shared operator framework (`github.com/zncdatadev/operator-go v0.12.6`)
+- `../operator-go` — Shared operator framework (`github.com/zncdatadev/operator-go v0.13.0`)
 
 ### External
-- `sigs.k8s.io/controller-runtime v0.23.1`
-- `k8s.io/client-go v0.35.0`
-- `k8s.io/api v0.35.0`
-- Go 1.25+
+- `sigs.k8s.io/controller-runtime v0.23.3`
+- `k8s.io/client-go v0.35.4`
+- `k8s.io/api v0.35.4`
+- Use the Go version in `go.mod` for local tools (Chainsaw uses Go testing internals).
 
 ### AI Worktree Development Mode
 
